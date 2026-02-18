@@ -35,6 +35,7 @@ export default function App() {
   const [timeframe, setTimeframe] = useState<Timeframe>(initial.tf ?? 'ALL');
   const [metric, setMetric] = useState<InflationMetric>(initial.metric ?? 'CPI');
   const [logScale, setLogScale] = useState(initial.log ?? false);
+  const [showEvents, setShowEvents] = useState(initial.events ?? true);
   const [livePrices, setLivePrices] = useState<PricePoint[]>([]);
   const [liveDxy, setLiveDxy] = useState<DeflatorPoint[]>([]);
   const [liveM2, setLiveM2] = useState<DeflatorPoint[]>([]);
@@ -64,8 +65,8 @@ export default function App() {
 
   // 2. Sync state → URL
   useEffect(() => {
-    writeUrlState({ metric, anchor: anchorYear, tf: timeframe, log: logScale });
-  }, [metric, anchorYear, timeframe, logScale]);
+    writeUrlState({ metric, anchor: anchorYear, tf: timeframe, log: logScale, events: showEvents });
+  }, [metric, anchorYear, timeframe, logScale, showEvents]);
 
   // 3. Stitch static + live
   const stitchedPrices = useMemo(
@@ -174,8 +175,10 @@ export default function App() {
         onMetricChange={setMetric}
         logScale={logScale}
         onLogScaleChange={setLogScale}
+        showEvents={showEvents}
+        onShowEventsChange={setShowEvents}
       />
-      <PriceChart data={filteredData} metric={metric} logScale={logScale} />
+      <PriceChart data={filteredData} metric={metric} logScale={logScale} showEvents={showEvents} />
       <Calculator prices={stitchedPrices} cpiMap={dailyCpi} m2Map={dailyM2} goldMap={dailyGold} />
       <Explainer stats={shockStats} />
       <Footer liveDataStatus={liveDataStatus} />

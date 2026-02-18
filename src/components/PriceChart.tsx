@@ -5,10 +5,12 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  ReferenceLine,
   ResponsiveContainer,
 } from 'recharts';
 import type { AdjustedPricePoint, GoldPricePoint, InflationMetric } from '../lib/types';
 import { formatUSDCompact, formatChartDate, formatGoldOz } from '../lib/formatters';
+import { EVENTS, filterEventsToRange, type ChartEvent } from '../lib/events';
 import { CustomTooltip } from './CustomTooltip';
 import styles from './PriceChart.module.css';
 
@@ -18,6 +20,7 @@ interface PriceChartProps {
   data: ChartPoint[];
   metric: InflationMetric;
   logScale: boolean;
+  showEvents: boolean;
 }
 
 function sampleTicks(data: { date: string }[]): string[] {
@@ -30,10 +33,30 @@ function sampleTicks(data: { date: string }[]): string[] {
   return ticks;
 }
 
-export function PriceChart({ data, metric, logScale }: PriceChartProps) {
+/**
+ * Compute dy offsets for events that are close together (within 90 days)
+ * to prevent label overlap. Alternates between 0 and 16.
+ */
+function computeLabelOffsets(events: ChartEvent[]): number[] {
+  const offsets = events.map(() => 0);
+  for (let i = 1; i < events.length; i++) {
+    const prevDate = new Date(events[i - 1].date).getTime();
+    const currDate = new Date(events[i].date).getTime();
+    const daysDiff = (currDate - prevDate) / 86_400_000;
+    if (daysDiff < 90) {
+      offsets[i] = offsets[i - 1] === 0 ? 16 : 0;
+    }
+  }
+  return offsets;
+}
+
+export function PriceChart({ data, metric, logScale, showEvents }: PriceChartProps) {
   if (data.length === 0) return null;
 
   const isGold = metric === 'GOLD';
+
+  const visibleEvents = showEvents ? filterEventsToRange(EVENTS, data) : [];
+  const labelOffsets = computeLabelOffsets(visibleEvents);
 
   // Filter out zero/negative values for log scale
   let chartData = data;
@@ -87,6 +110,24 @@ export function PriceChart({ data, metric, logScale }: PriceChartProps) {
                 {...yAxisProps}
               />
               <Tooltip content={<CustomTooltip metric={metric} />} />
+              {visibleEvents.map((event, i) => (
+                <ReferenceLine
+                  key={event.date}
+                  x={event.date}
+                  yAxisId="usd"
+                  stroke={event.color}
+                  strokeDasharray="3 3"
+                  strokeWidth={1}
+                  label={{
+                    value: event.label,
+                    position: 'insideTopRight',
+                    fill: event.color,
+                    fontSize: 10,
+                    fontWeight: 500,
+                    dy: labelOffsets[i],
+                  }}
+                />
+              ))}
               <Line
                 yAxisId="usd"
                 type="monotone"
@@ -148,6 +189,23 @@ export function PriceChart({ data, metric, logScale }: PriceChartProps) {
               {...yAxisProps}
             />
             <Tooltip content={<CustomTooltip metric={metric} />} />
+            {visibleEvents.map((event, i) => (
+              <ReferenceLine
+                key={event.date}
+                x={event.date}
+                stroke={event.color}
+                strokeDasharray="3 3"
+                strokeWidth={1}
+                label={{
+                  value: event.label,
+                  position: 'insideTopRight',
+                  fill: event.color,
+                  fontSize: 10,
+                  fontWeight: 500,
+                  dy: labelOffsets[i],
+                }}
+              />
+            ))}
             <Line
               type="monotone"
               dataKey="nominalPrice"
@@ -155,8 +213,8 @@ export function PriceChart({ data, metric, logScale }: PriceChartProps) {
               strokeWidth={1.5}
               dot={false}
               isAnimationActive={true}
-                animationDuration={600}
-                animationEasing="ease-in-out"
+              animationDuration={600}
+              animationEasing="ease-in-out"
               name="Nominal"
             />
             <Line

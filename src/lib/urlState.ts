@@ -15,6 +15,7 @@ interface UrlState {
   anchor: number;
   tf: Timeframe;
   log: boolean;
+  events: boolean;
 }
 
 export function parseUrlState(): Partial<UrlState> {
@@ -44,6 +45,11 @@ export function parseUrlState(): Partial<UrlState> {
     result.log = true;
   }
 
+  const events = params.get('events');
+  if (events === '0') {
+    result.events = false;
+  }
+
   return result;
 }
 
@@ -61,6 +67,9 @@ export function writeUrlState(state: UrlState): void {
   }
   if (state.log) {
     params.set('log', '1');
+  }
+  if (state.events === false) {
+    params.set('events', '0');
   }
 
   const search = params.toString();

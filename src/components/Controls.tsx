@@ -11,6 +11,8 @@ interface ControlsProps {
   onMetricChange: (m: InflationMetric) => void;
   logScale: boolean;
   onLogScaleChange: (v: boolean) => void;
+  showEvents: boolean;
+  onShowEventsChange: (v: boolean) => void;
 }
 
 const TIMEFRAMES: Timeframe[] = ['1Y', '5Y', 'ALL'];
@@ -31,6 +33,8 @@ export function Controls({
   onMetricChange,
   logScale,
   onLogScaleChange,
+  showEvents,
+  onShowEventsChange,
 }: ControlsProps) {
   const [copied, setCopied] = useState(false);
   const currentYear = new Date().getFullYear();
@@ -93,6 +97,24 @@ export function Controls({
             onClick={() => onLogScaleChange(true)}
           >
             Log
+          </button>
+        </div>
+      </div>
+
+      <div className={styles.group}>
+        <span className={styles.label}>Events</span>
+        <div className={styles.segmented}>
+          <button
+            className={`${styles.segBtn} ${showEvents ? styles.active : ''}`}
+            onClick={() => onShowEventsChange(true)}
+          >
+            On
+          </button>
+          <button
+            className={`${styles.segBtn} ${!showEvents ? styles.active : ''}`}
+            onClick={() => onShowEventsChange(false)}
+          >
+            Off
           </button>
         </div>
       </div>
