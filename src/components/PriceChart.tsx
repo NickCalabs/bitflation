@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
-  LineChart,
+  ComposedChart,
   Line,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -91,13 +92,15 @@ function computeEventLayouts(events: ChartEvent[]): EventLayout[] {
   return layouts;
 }
 
-export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGap: _showGap, multiMetricData, comparisonData, compareAssets = [] }: PriceChartProps) {
-  void _showGap; // Used in Phase 3 (purchasing power gap)
+export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGap, multiMetricData, comparisonData, compareAssets = [] }: PriceChartProps) {
   const isComparison = comparisonData != null && comparisonData.length > 0 && compareAssets.length > 0;
   const primaryMetric = selectedMetrics[0];
   const isGold = selectedMetrics.length === 1 && selectedMetrics[0] === 'GOLD';
   const deflatorMetrics = selectedMetrics.filter((m): m is DeflatorMetric => m !== 'GOLD');
   const useMultiMetric = multiMetricData != null && multiMetricData.length > 0 && !isComparison;
+
+  // Determine the primary metric key for gap fill
+  const primaryMetricKey = deflatorMetrics.length > 0 ? METRIC_KEYS[deflatorMetrics[0]] : 'adjustedPrice';
 
   // Zoom state
   const [zoomStart, setZoomStart] = useState<string | null>(null);
@@ -207,6 +210,9 @@ export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGa
     <button className={styles.resetZoom} onClick={resetZoom}>Reset zoom</button>
   );
 
+  // Whether to show gap fill (only in deflator mode, not gold or comparison)
+  const renderGap = showGap && !isGold && !isComparison;
+
   // Comparison chart mode (indexed to 100)
   if (isComparison) {
     const compYAxisProps = {
@@ -221,7 +227,7 @@ export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGa
         {resetButton}
         <div className={styles.chart}>
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart
+            <ComposedChart
               data={zoomedCompData!}
               margin={{ top: 5, right: 10, left: 10, bottom: 5 }}
               onMouseDown={handleMouseDown}
@@ -314,7 +320,7 @@ export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGa
                   name="Housing"
                 />
               )}
-            </LineChart>
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
         <div className={styles.legend}>
@@ -342,7 +348,7 @@ export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGa
         {resetButton}
         <div className={styles.chart}>
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart
+            <ComposedChart
               data={chartData}
               margin={{ top: 5, right: 10, left: 10, bottom: 5 }}
               onMouseDown={handleMouseDown}
@@ -415,7 +421,7 @@ export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGa
                 animationEasing="ease-in-out"
                 name="Gold (oz)"
               />
-            </LineChart>
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
         <div className={styles.legend}>
@@ -440,7 +446,7 @@ export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGa
       {resetButton}
       <div className={styles.chart}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart
+          <ComposedChart
             data={chartSource}
             margin={{ top: 5, right: 10, left: 10, bottom: 5 }}
             onMouseDown={handleMouseDown}
@@ -479,6 +485,26 @@ export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGa
                 }}
               />
             ))}
+            {renderGap && (
+              <>
+                <Area
+                  type="monotone"
+                  dataKey={primaryMetricKey}
+                  stackId="gap"
+                  fill="transparent"
+                  stroke="none"
+                  isAnimationActive={false}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="inflationGap"
+                  stackId="gap"
+                  fill="rgba(239, 68, 68, 0.12)"
+                  stroke="none"
+                  isAnimationActive={false}
+                />
+              </>
+            )}
             {zoomOverlay}
             <Line
               type="monotone"
@@ -517,7 +543,7 @@ export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGa
                 name="Adjusted"
               />
             )}
-          </LineChart>
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
       <div className={styles.legend}>
