@@ -74,6 +74,40 @@
   display: block;
 }
 
+.checkboxGroup {
+  display: flex;
+  gap: 12px;
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.15s;
+}
+
+.checkboxLabel:hover:not(.disabled) {
+  color: var(--text-primary);
+}
+
+.checkboxDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.compareDisabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
 .shareWrap {
   position: relative;
 }

@@ -40,6 +40,10 @@
   background: #facc15;
 }
 
+.btc {
+  background: var(--accent-indigo);
+}
+
 @media (max-width: 768px) {
   .chart {
     height: 350px;

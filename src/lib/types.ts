@@ -37,6 +37,16 @@ export interface CalculatorResult {
   goldReturn: number;          // ratio of gold ounces now vs then
 }
 
+export type ComparisonAsset = 'sp500' | 'gold' | 'housing';
+
+export interface ComparisonPoint {
+  date: string;
+  btc: number;        // normalized to 100
+  sp500?: number;
+  gold?: number;
+  housing?: number;
+}
+
 export interface GoldPricePoint {
   date: string; // YYYY-MM-DD
   nominalPrice: number;   // BTC in USD

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Timeframe, InflationMetric } from '../lib/types';
+import type { Timeframe, InflationMetric, ComparisonAsset } from '../lib/types';
 import styles from './Controls.module.css';
 
 interface ControlsProps {
@@ -13,9 +13,17 @@ interface ControlsProps {
   onLogScaleChange: (v: boolean) => void;
   showEvents: boolean;
   onShowEventsChange: (v: boolean) => void;
+  compareAssets: ComparisonAsset[];
+  onCompareAssetsChange: (assets: ComparisonAsset[]) => void;
 }
 
 const TIMEFRAMES: Timeframe[] = ['1Y', '5Y', 'ALL'];
+
+const COMPARE_OPTIONS: { value: ComparisonAsset; label: string; color: string }[] = [
+  { value: 'sp500', label: 'S&P 500', color: '#22d3ee' },
+  { value: 'gold', label: 'Gold', color: '#facc15' },
+  { value: 'housing', label: 'Housing', color: '#f97316' },
+];
 
 const METRICS: { value: InflationMetric; label: string }[] = [
   { value: 'CPI', label: 'CPI' },
@@ -35,11 +43,23 @@ export function Controls({
   onLogScaleChange,
   showEvents,
   onShowEventsChange,
+  compareAssets,
+  onCompareAssetsChange,
 }: ControlsProps) {
   const [copied, setCopied] = useState(false);
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: currentYear - 2010 + 1 }, (_, i) => 2010 + i);
   const hideAnchorYear = metric === 'GOLD';
+  const compareDisabled = metric === 'GOLD';
+
+  const toggleCompare = (asset: ComparisonAsset) => {
+    if (compareDisabled) return;
+    onCompareAssetsChange(
+      compareAssets.includes(asset)
+        ? compareAssets.filter((a) => a !== asset)
+        : [...compareAssets, asset]
+    );
+  };
 
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href).then(() => {
@@ -130,6 +150,30 @@ export function Controls({
             >
               {m.label}
             </button>
+          ))}
+        </div>
+      </div>
+
+      <div className={`${styles.group} ${compareDisabled ? styles.compareDisabled : ''}`}>
+        <span className={styles.label}>Compare</span>
+        <div className={styles.checkboxGroup}>
+          {COMPARE_OPTIONS.map((opt) => (
+            <label
+              key={opt.value}
+              className={`${styles.checkboxLabel} ${compareDisabled ? styles.disabled : ''}`}
+              onClick={() => toggleCompare(opt.value)}
+            >
+              <span
+                className={styles.checkboxDot}
+                style={{
+                  background: compareAssets.includes(opt.value) && !compareDisabled
+                    ? opt.color
+                    : 'transparent',
+                  borderColor: opt.color,
+                }}
+              />
+              {opt.label}
+            </label>
           ))}
         </div>
       </div>

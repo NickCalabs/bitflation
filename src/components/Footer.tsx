@@ -17,7 +17,7 @@ export function Footer({ liveDataStatus }: FooterProps) {
   return (
     <footer className={styles.footer}>
       <div className={styles.sources}>
-        <span>Data: BLS CPI-U, FRED, CryptoCompare, CoinGecko</span>
+        <span>Data: BLS CPI-U, FRED, CryptoCompare, CoinGecko, S&amp;P Dow Jones</span>
         <span>|</span>
         <span>
           <span className={styles.badge}>

@@ -8,19 +8,33 @@ import {
   ReferenceLine,
   ResponsiveContainer,
 } from 'recharts';
-import type { AdjustedPricePoint, GoldPricePoint, InflationMetric } from '../lib/types';
-import { formatUSDCompact, formatChartDate, formatGoldOz } from '../lib/formatters';
+import type { AdjustedPricePoint, GoldPricePoint, InflationMetric, ComparisonAsset, ComparisonPoint } from '../lib/types';
+import { formatUSDCompact, formatChartDate, formatGoldOz, formatIndexed } from '../lib/formatters';
 import { EVENTS, filterEventsToRange, type ChartEvent } from '../lib/events';
 import { CustomTooltip } from './CustomTooltip';
 import styles from './PriceChart.module.css';
 
 type ChartPoint = AdjustedPricePoint | GoldPricePoint;
 
+const COMPARISON_COLORS: Record<ComparisonAsset, string> = {
+  sp500: '#22d3ee',
+  gold: '#facc15',
+  housing: '#f97316',
+};
+
+const COMPARISON_LABELS: Record<ComparisonAsset, string> = {
+  sp500: 'S&P 500',
+  gold: 'Gold',
+  housing: 'Housing (delayed)',
+};
+
 interface PriceChartProps {
   data: ChartPoint[];
   metric: InflationMetric;
   logScale: boolean;
   showEvents: boolean;
+  comparisonData?: ComparisonPoint[] | null;
+  compareAssets?: ComparisonAsset[];
 }
 
 function sampleTicks(data: { date: string }[]): string[] {
@@ -50,12 +64,15 @@ function computeLabelOffsets(events: ChartEvent[]): number[] {
   return offsets;
 }
 
-export function PriceChart({ data, metric, logScale, showEvents }: PriceChartProps) {
-  if (data.length === 0) return null;
+export function PriceChart({ data, metric, logScale, showEvents, comparisonData, compareAssets = [] }: PriceChartProps) {
+  const isComparison = comparisonData != null && comparisonData.length > 0 && compareAssets.length > 0;
+
+  if (!isComparison && data.length === 0) return null;
 
   const isGold = metric === 'GOLD';
 
-  const visibleEvents = showEvents ? filterEventsToRange(EVENTS, data) : [];
+  const eventSource = isComparison ? comparisonData! : data;
+  const visibleEvents = showEvents ? filterEventsToRange(EVENTS, eventSource) : [];
   const labelOffsets = computeLabelOffsets(visibleEvents);
 
   // Filter out zero/negative values for log scale
@@ -80,6 +97,128 @@ export function PriceChart({ data, metric, logScale, showEvents }: PriceChartPro
     tickLine: false as const,
     ...(logScale ? { scale: 'log' as const, domain: [1, 'auto'] as [number, 'auto'] } : {}),
   };
+
+  // Comparison chart mode (indexed to 100)
+  if (isComparison) {
+    const compTicks = sampleTicks(comparisonData!);
+    const compYAxisProps = {
+      tick: { fill: '#71717a', fontSize: 11 } as const,
+      axisLine: false as const,
+      tickLine: false as const,
+      ...(logScale ? { scale: 'log' as const, domain: [1, 'auto'] as [number, 'auto'] } : {}),
+    };
+
+    return (
+      <div className={styles.chartWrapper}>
+        <div className={styles.chart}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={comparisonData!} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+              <CartesianGrid stroke="#333" strokeDasharray="4 4" vertical={false} />
+              <XAxis
+                dataKey="date"
+                tickFormatter={formatChartDate}
+                ticks={compTicks}
+                tick={{ fill: '#71717a', fontSize: 11 }}
+                axisLine={{ stroke: '#333' }}
+                tickLine={false}
+              />
+              <YAxis
+                tickFormatter={(v: number) => formatIndexed(v)}
+                width={55}
+                {...compYAxisProps}
+              />
+              <Tooltip content={<CustomTooltip metric={metric} compareAssets={compareAssets} />} />
+              {visibleEvents.map((event, i) => (
+                <ReferenceLine
+                  key={event.date}
+                  x={event.date}
+                  stroke={event.color}
+                  strokeDasharray="3 3"
+                  strokeWidth={1}
+                  label={{
+                    value: event.label,
+                    position: 'insideTopRight',
+                    fill: event.color,
+                    fontSize: 10,
+                    fontWeight: 500,
+                    dy: labelOffsets[i],
+                  }}
+                />
+              ))}
+              <Line
+                type="monotone"
+                dataKey="btc"
+                stroke="#818cf8"
+                strokeWidth={2}
+                dot={false}
+                isAnimationActive={true}
+                animationDuration={600}
+                animationEasing="ease-in-out"
+                name="BTC"
+              />
+              {compareAssets.includes('sp500') && (
+                <Line
+                  type="monotone"
+                  dataKey="sp500"
+                  stroke="#22d3ee"
+                  strokeWidth={1.5}
+                  dot={false}
+                  connectNulls
+                  isAnimationActive={true}
+                  animationDuration={600}
+                  animationEasing="ease-in-out"
+                  name="S&P 500"
+                />
+              )}
+              {compareAssets.includes('gold') && (
+                <Line
+                  type="monotone"
+                  dataKey="gold"
+                  stroke="#facc15"
+                  strokeWidth={1.5}
+                  dot={false}
+                  connectNulls
+                  isAnimationActive={true}
+                  animationDuration={600}
+                  animationEasing="ease-in-out"
+                  name="Gold"
+                />
+              )}
+              {compareAssets.includes('housing') && (
+                <Line
+                  type="monotone"
+                  dataKey="housing"
+                  stroke="#f97316"
+                  strokeWidth={1.5}
+                  dot={false}
+                  connectNulls
+                  isAnimationActive={true}
+                  animationDuration={600}
+                  animationEasing="ease-in-out"
+                  name="Housing"
+                />
+              )}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+        <div className={styles.legend}>
+          <div className={styles.legendItem}>
+            <span className={`${styles.legendDot} ${styles.btc}`} />
+            BTC
+          </div>
+          {compareAssets.map((asset) => (
+            <div key={asset} className={styles.legendItem}>
+              <span
+                className={styles.legendDot}
+                style={{ background: COMPARISON_COLORS[asset] }}
+              />
+              {COMPARISON_LABELS[asset]}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   if (isGold) {
     return (

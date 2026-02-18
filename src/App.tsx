@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import type { Timeframe, InflationMetric, LiveDataStatus, PricePoint, DeflatorPoint, AdjustedPricePoint, GoldPricePoint } from './lib/types';
+import type { Timeframe, InflationMetric, LiveDataStatus, PricePoint, DeflatorPoint, AdjustedPricePoint, GoldPricePoint, ComparisonAsset, ComparisonPoint } from './lib/types';
 import { interpolateMonthlyToDaily } from './lib/interpolateCpi';
 import { adjustPrices } from './lib/adjustPrices';
 import { convertToGold } from './lib/convertToGold';
@@ -8,6 +8,8 @@ import { fetchFred } from './lib/fetchFred';
 import { stitchPrices, stitchDeflators } from './lib/stitchPrices';
 import { filterByTimeframe } from './lib/filterByTimeframe';
 import { parseUrlState, writeUrlState } from './lib/urlState';
+import { normalizeToIndex } from './lib/normalizeToIndex';
+import { interpolatePricesToDaily } from './lib/interpolatePricesToDaily';
 import { Header } from './components/Header';
 import { HeroPrice } from './components/HeroPrice';
 import { Controls } from './components/Controls';
@@ -21,12 +23,16 @@ import staticCpiData from './data/cpi-monthly.json';
 import staticM2Data from './data/m2-monthly.json';
 import staticGoldData from './data/gold-monthly.json';
 import staticDxyData from './data/dxy-daily.json';
+import staticSp500Data from './data/sp500-daily.json';
+import staticHousingData from './data/housing-monthly.json';
 
 const staticBtc = staticBtcData as PricePoint[];
 const staticCpi = staticCpiData as DeflatorPoint[];
 const staticM2 = staticM2Data as DeflatorPoint[];
 const staticGold = staticGoldData as DeflatorPoint[];
 const staticDxy = staticDxyData as DeflatorPoint[];
+const staticSp500 = staticSp500Data as PricePoint[];
+const staticHousing = staticHousingData as PricePoint[];
 
 const initial = parseUrlState();
 
@@ -35,10 +41,12 @@ export default function App() {
   const [timeframe, setTimeframe] = useState<Timeframe>(initial.tf ?? 'ALL');
   const [metric, setMetric] = useState<InflationMetric>(initial.metric ?? 'CPI');
   const [logScale, setLogScale] = useState(initial.log ?? false);
-  const [showEvents, setShowEvents] = useState(initial.events ?? true);
+  const [showEvents, setShowEvents] = useState(initial.events ?? false);
+  const [compareAssets, setCompareAssets] = useState<ComparisonAsset[]>(initial.compare ?? []);
   const [livePrices, setLivePrices] = useState<PricePoint[]>([]);
   const [liveDxy, setLiveDxy] = useState<DeflatorPoint[]>([]);
   const [liveM2, setLiveM2] = useState<DeflatorPoint[]>([]);
+  const [liveSp500, setLiveSp500] = useState<DeflatorPoint[]>([]);
   const [liveDataStatus, setLiveDataStatus] = useState<LiveDataStatus>('none');
 
   // 1. Fetch all live data on mount
@@ -49,11 +57,14 @@ export default function App() {
       fetchLivePrices(),
       fetchFred('DTWEXBGS', '2025-06-01'),
       fetchFred('M2SL', '2025-06-01'),
-    ]).then(([btcPrices, dxyData, m2Data]) => {
+      fetchFred('SP500', '2025-06-01'),
+    ]).then(([btcPrices, dxyData, m2Data, sp500Data]) => {
       if (btcPrices.length > 0) setLivePrices(btcPrices);
       if (dxyData.length > 0) setLiveDxy(dxyData);
       if (m2Data.length > 0) setLiveM2(m2Data);
+      if (sp500Data.length > 0) setLiveSp500(sp500Data);
 
+      // Badge threshold stays at 3 (BTC + DXY + M2) — SP500 is a comparison asset
       const successes = [btcPrices, dxyData, m2Data].filter(
         (d) => d.length > 0
       ).length;
@@ -65,8 +76,8 @@ export default function App() {
 
   // 2. Sync state → URL
   useEffect(() => {
-    writeUrlState({ metric, anchor: anchorYear, tf: timeframe, log: logScale, events: showEvents });
-  }, [metric, anchorYear, timeframe, logScale, showEvents]);
+    writeUrlState({ metric, anchor: anchorYear, tf: timeframe, log: logScale, events: showEvents, compare: compareAssets });
+  }, [metric, anchorYear, timeframe, logScale, showEvents, compareAssets]);
 
   // 3. Stitch static + live
   const stitchedPrices = useMemo(
@@ -104,6 +115,31 @@ export default function App() {
     }
     return map;
   }, [mergedDxy]);
+
+  // 4b. Comparison asset data
+  const stitchedSp500 = useMemo(() => {
+    // Convert live DeflatorPoint[] → PricePoint[] for stitching
+    const liveSp500AsPrices: PricePoint[] = liveSp500.map((d) => ({
+      date: d.date,
+      price: d.value,
+    }));
+    return stitchPrices(staticSp500, liveSp500AsPrices);
+  }, [liveSp500]);
+
+  const dailyHousing = useMemo(
+    () => interpolatePricesToDaily(staticHousing),
+    []
+  );
+
+  // Convert dailyGold Map → PricePoint[] for use as comparison asset
+  const goldAsPrices = useMemo((): PricePoint[] => {
+    const result: PricePoint[] = [];
+    for (const [date, price] of dailyGold) {
+      result.push({ date, price });
+    }
+    result.sort((a, b) => a.date.localeCompare(b.date));
+    return result;
+  }, [dailyGold]);
 
   // 5. Compute adjusted/converted data based on metric
   const processedData = useMemo((): AdjustedPricePoint[] | GoldPricePoint[] => {
@@ -162,6 +198,37 @@ export default function App() {
     return { dollarLoss, btcNominalGain, btcRealGain, m2Increase, btcGoldChange };
   }, [stitchedPrices, dailyCpi, dailyM2, dailyGold]);
 
+  // 9. Comparison data pipeline (normalized to index 100)
+  const comparisonData = useMemo((): ComparisonPoint[] | null => {
+    if (compareAssets.length === 0 || metric === 'GOLD') return null;
+
+    const deflator = metric === 'CPI' ? dailyCpi : metric === 'M2' ? dailyM2 : dailyDxy;
+
+    // BTC adjusted + filtered
+    const btcAdjusted = adjustPrices(stitchedPrices, deflator, anchorYear);
+    const btcFiltered = filterByTimeframe(btcAdjusted, timeframe);
+
+    // Build each comparison asset's adjusted series
+    const assetSeries: { key: ComparisonAsset; data: AdjustedPricePoint[] }[] = [];
+
+    for (const asset of compareAssets) {
+      let prices: PricePoint[];
+      if (asset === 'sp500') {
+        prices = stitchedSp500;
+      } else if (asset === 'gold') {
+        prices = goldAsPrices;
+      } else {
+        prices = dailyHousing;
+      }
+
+      const adjusted = adjustPrices(prices, deflator, anchorYear);
+      const filtered = filterByTimeframe(adjusted, timeframe);
+      assetSeries.push({ key: asset, data: filtered });
+    }
+
+    return normalizeToIndex(btcFiltered, assetSeries);
+  }, [compareAssets, metric, anchorYear, timeframe, stitchedPrices, stitchedSp500, goldAsPrices, dailyHousing, dailyCpi, dailyM2, dailyDxy]);
+
   return (
     <>
       <Header />
@@ -177,8 +244,17 @@ export default function App() {
         onLogScaleChange={setLogScale}
         showEvents={showEvents}
         onShowEventsChange={setShowEvents}
+        compareAssets={compareAssets}
+        onCompareAssetsChange={setCompareAssets}
       />
-      <PriceChart data={filteredData} metric={metric} logScale={logScale} showEvents={showEvents} />
+      <PriceChart
+        data={filteredData}
+        metric={metric}
+        logScale={logScale}
+        showEvents={showEvents}
+        comparisonData={comparisonData}
+        compareAssets={compareAssets}
+      />
       <Calculator prices={stitchedPrices} cpiMap={dailyCpi} m2Map={dailyM2} goldMap={dailyGold} />
       <Explainer stats={shockStats} />
       <Footer liveDataStatus={liveDataStatus} />

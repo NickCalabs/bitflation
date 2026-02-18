@@ -48,6 +48,10 @@ export function formatGoldOz(value: number): string {
   return `${value.toFixed(2)} oz`;
 }
 
+export function formatIndexed(value: number): string {
+  return value.toFixed(0);
+}
+
 export function formatChartDate(dateStr: string): string {
   const [year, month] = dateStr.split('-').map(Number);
   const date = new Date(year, month - 1, 1);

@@ -1,7 +1,8 @@
-import type { InflationMetric, Timeframe } from './types';
+import type { InflationMetric, Timeframe, ComparisonAsset } from './types';
 
 const VALID_METRICS: InflationMetric[] = ['CPI', 'M2', 'GOLD', 'DXY'];
 const VALID_TIMEFRAMES: Timeframe[] = ['1Y', '5Y', 'ALL'];
+const VALID_COMPARE: ComparisonAsset[] = ['sp500', 'gold', 'housing'];
 
 const DEFAULTS = {
   metric: 'CPI' as InflationMetric,
@@ -16,6 +17,7 @@ interface UrlState {
   tf: Timeframe;
   log: boolean;
   events: boolean;
+  compare: ComparisonAsset[];
 }
 
 export function parseUrlState(): Partial<UrlState> {
@@ -46,8 +48,18 @@ export function parseUrlState(): Partial<UrlState> {
   }
 
   const events = params.get('events');
-  if (events === '0') {
-    result.events = false;
+  if (events === '1') {
+    result.events = true;
+  }
+
+  const compare = params.get('compare');
+  if (compare) {
+    const assets = compare.split(',').filter(
+      (v): v is ComparisonAsset => VALID_COMPARE.includes(v as ComparisonAsset)
+    );
+    if (assets.length > 0) {
+      result.compare = assets;
+    }
   }
 
   return result;
@@ -68,8 +80,11 @@ export function writeUrlState(state: UrlState): void {
   if (state.log) {
     params.set('log', '1');
   }
-  if (state.events === false) {
-    params.set('events', '0');
+  if (state.events) {
+    params.set('events', '1');
+  }
+  if (state.compare.length > 0) {
+    params.set('compare', state.compare.join(','));
   }
 
   const search = params.toString();
