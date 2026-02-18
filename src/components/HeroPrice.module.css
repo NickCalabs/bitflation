@@ -1,0 +1,66 @@
+.hero {
+  padding: 32px 0 24px;
+}
+
+.adjustedRow {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.btcSymbol {
+  font-family: var(--font-mono);
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  color: var(--text-muted);
+}
+
+.adjustedPrice {
+  font-family: var(--font-mono);
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-green);
+  letter-spacing: -0.02em;
+}
+
+.anchorLabel {
+  font-size: clamp(0.85rem, 1.5vw, 1rem);
+  color: var(--text-secondary);
+}
+
+.estimate {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.nominalRow {
+  margin-top: 6px;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+.nominalPrice {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.diffRow {
+  margin-top: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.positive {
+  color: var(--accent-green);
+}
+
+.negative {
+  color: var(--accent-red);
+}
+
+.noData {
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 32px 0;
+}

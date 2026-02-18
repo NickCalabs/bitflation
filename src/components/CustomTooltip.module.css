@@ -1,0 +1,71 @@
+.tooltip {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-size: 0.8rem;
+}
+
+.date {
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  font-size: 0.75rem;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.nominal {
+  background: var(--accent-indigo);
+}
+
+.adjusted {
+  background: var(--accent-green);
+}
+
+.gold {
+  background: #facc15;
+}
+
+.sub {
+  margin-top: 4px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.label {
+  color: var(--text-secondary);
+  min-width: 60px;
+}
+
+.value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.diff {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  font-size: 0.75rem;
+}
+
+.positive {
+  color: var(--accent-green);
+}
+
+.negative {
+  color: var(--accent-red);
+}

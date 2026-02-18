@@ -1,0 +1,47 @@
+.chartWrapper {
+  padding: 8px 0 24px;
+}
+
+.chart {
+  width: 100%;
+  height: 500px;
+}
+
+.legend {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  padding-top: 12px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.legendDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.nominal {
+  background: var(--accent-indigo);
+}
+
+.adjusted {
+  background: var(--accent-green);
+}
+
+.gold {
+  background: #facc15;
+}
+
+@media (max-width: 768px) {
+  .chart {
+    height: 350px;
+  }
+}
