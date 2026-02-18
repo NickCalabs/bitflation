@@ -6,21 +6,9 @@
   border-bottom: 1px solid var(--border);
 }
 
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.logoIcon {
-  font-size: 1.5rem;
-}
-
-.logoText {
-  font-family: var(--font-mono);
-  font-size: 1.25rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+.logoImg {
+  height: 40px;
+  width: auto;
 }
 
 .tagline {
