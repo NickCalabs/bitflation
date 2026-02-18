@@ -12,6 +12,7 @@ import { Header } from './components/Header';
 import { HeroPrice } from './components/HeroPrice';
 import { Controls } from './components/Controls';
 import { PriceChart } from './components/PriceChart';
+import { Explainer } from './components/Explainer';
 import { Footer } from './components/Footer';
 
 import staticBtcData from './data/btc-daily.json';
@@ -127,6 +128,43 @@ export default function App() {
     ? filteredData[filteredData.length - 1]
     : null;
 
+  // 8. Shock stats for explainer (since 2020-01-01)
+  const shockStats = useMemo(() => {
+    const ref = '2020-01-01';
+    const today = stitchedPrices.length > 0 ? stitchedPrices[stitchedPrices.length - 1].date : null;
+
+    // Dollar purchasing power loss via CPI
+    const cpiRef = dailyCpi.get(ref);
+    const cpiNow = today ? dailyCpi.get(today) : undefined;
+    const dollarLoss = cpiRef && cpiNow ? 1 - cpiRef / cpiNow : null;
+
+    // BTC nominal gain
+    const btcRef = stitchedPrices.find((p) => p.date >= ref);
+    const btcNow = stitchedPrices.length > 0 ? stitchedPrices[stitchedPrices.length - 1] : null;
+    const btcNominalGain = btcRef && btcNow ? btcNow.price / btcRef.price : null;
+
+    // BTC CPI-adjusted gain
+    const btcRealGain =
+      btcNominalGain !== null && cpiRef && cpiNow
+        ? btcNominalGain * (cpiRef / cpiNow)
+        : null;
+
+    // M2 increase
+    const m2Ref = dailyM2.get(ref);
+    const m2Now = today ? dailyM2.get(today) : undefined;
+    const m2Increase = m2Ref && m2Now ? (m2Now - m2Ref) / m2Ref : null;
+
+    // BTC in gold terms change
+    const goldRef = dailyGold.get(ref);
+    const goldNow = today ? dailyGold.get(today) : undefined;
+    const btcGoldChange =
+      btcRef && btcNow && goldRef && goldNow
+        ? (btcNow.price / goldNow) / (btcRef.price / goldRef)
+        : null;
+
+    return { dollarLoss, btcNominalGain, btcRealGain, m2Increase, btcGoldChange };
+  }, [stitchedPrices, dailyCpi, dailyM2, dailyGold]);
+
   return (
     <>
       <Header />
@@ -142,6 +180,7 @@ export default function App() {
         onLogScaleChange={setLogScale}
       />
       <PriceChart data={filteredData} metric={metric} logScale={logScale} />
+      <Explainer stats={shockStats} />
       <Footer liveDataStatus={liveDataStatus} />
     </>
   );

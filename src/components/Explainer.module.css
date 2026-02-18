@@ -1,0 +1,50 @@
+.section {
+  border-top: 1px solid var(--border);
+  padding-top: 40px;
+  margin-top: 24px;
+}
+
+.headline {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.subhead {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.intro {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 720px;
+  margin-bottom: 32px;
+}
+
+.prose {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 720px;
+  margin-bottom: 32px;
+}
+
+.nominal {
+  color: var(--accent-indigo);
+  font-weight: 500;
+}
+
+.adjusted {
+  color: var(--accent-green);
+  font-weight: 500;
+}
+
+.gold {
+  color: #facc15;
+  font-weight: 500;
+}
