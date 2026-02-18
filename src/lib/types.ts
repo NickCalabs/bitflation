@@ -18,6 +18,8 @@ export type Timeframe = '1Y' | '5Y' | 'ALL';
 
 export type InflationMetric = 'CPI' | 'M2' | 'GOLD' | 'DXY';
 
+export type LiveDataStatus = 'all' | 'partial' | 'none';
+
 export interface GoldPricePoint {
   date: string; // YYYY-MM-DD
   nominalPrice: number;   // BTC in USD

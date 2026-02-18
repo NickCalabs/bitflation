@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
-import type { Timeframe, InflationMetric, PricePoint, DeflatorPoint, AdjustedPricePoint, GoldPricePoint } from './lib/types';
+import type { Timeframe, InflationMetric, LiveDataStatus, PricePoint, DeflatorPoint, AdjustedPricePoint, GoldPricePoint } from './lib/types';
 import { interpolateMonthlyToDaily } from './lib/interpolateCpi';
 import { adjustPrices } from './lib/adjustPrices';
 import { convertToGold } from './lib/convertToGold';
 import { fetchLivePrices } from './lib/fetchLivePrices';
-import { stitchPrices } from './lib/stitchPrices';
+import { fetchFred } from './lib/fetchFred';
+import { stitchPrices, stitchDeflators } from './lib/stitchPrices';
 import { filterByTimeframe } from './lib/filterByTimeframe';
 import { parseUrlState, writeUrlState } from './lib/urlState';
 import { Header } from './components/Header';
@@ -33,15 +34,30 @@ export default function App() {
   const [metric, setMetric] = useState<InflationMetric>(initial.metric ?? 'CPI');
   const [logScale, setLogScale] = useState(initial.log ?? false);
   const [livePrices, setLivePrices] = useState<PricePoint[]>([]);
-  const [hasLiveData, setHasLiveData] = useState(false);
+  const [liveGold, setLiveGold] = useState<DeflatorPoint[]>([]);
+  const [liveDxy, setLiveDxy] = useState<DeflatorPoint[]>([]);
+  const [liveM2, setLiveM2] = useState<DeflatorPoint[]>([]);
+  const [liveDataStatus, setLiveDataStatus] = useState<LiveDataStatus>('none');
 
-  // 1. Fetch live prices on mount
+  // 1. Fetch all live data on mount
   useEffect(() => {
-    fetchLivePrices().then((prices) => {
-      if (prices.length > 0) {
-        setLivePrices(prices);
-        setHasLiveData(true);
-      }
+    Promise.all([
+      fetchLivePrices(),
+      fetchFred('GOLDAMGBD228NLBM', '2025-01-01'),
+      fetchFred('DTWEXBGS', '2025-06-01'),
+      fetchFred('M2SL', '2025-06-01'),
+    ]).then(([btcPrices, goldData, dxyData, m2Data]) => {
+      if (btcPrices.length > 0) setLivePrices(btcPrices);
+      if (goldData.length > 0) setLiveGold(goldData);
+      if (dxyData.length > 0) setLiveDxy(dxyData);
+      if (m2Data.length > 0) setLiveM2(m2Data);
+
+      const successes = [btcPrices, goldData, dxyData, m2Data].filter(
+        (d) => d.length > 0
+      ).length;
+      setLiveDataStatus(
+        successes === 4 ? 'all' : successes > 0 ? 'partial' : 'none'
+      );
     });
   }, []);
 
@@ -55,20 +71,32 @@ export default function App() {
     () => stitchPrices(staticBtc, livePrices),
     [livePrices]
   );
+  const mergedGold = useMemo(
+    () => stitchDeflators(staticGold, liveGold),
+    [liveGold]
+  );
+  const mergedDxy = useMemo(
+    () => stitchDeflators(staticDxy, liveDxy),
+    [liveDxy]
+  );
+  const mergedM2 = useMemo(
+    () => stitchDeflators(staticM2, liveM2),
+    [liveM2]
+  );
 
-  // 3. Interpolate monthly data to daily (each runs once)
+  // 4. Interpolate monthly data to daily
   const dailyCpi = useMemo(() => interpolateMonthlyToDaily(staticCpi), []);
-  const dailyM2 = useMemo(() => interpolateMonthlyToDaily(staticM2), []);
-  const dailyGold = useMemo(() => interpolateMonthlyToDaily(staticGold), []);
-  // DXY is already daily — just build a Map
+  const dailyM2 = useMemo(() => interpolateMonthlyToDaily(mergedM2), [mergedM2]);
+  const dailyGold = useMemo(() => interpolateMonthlyToDaily(mergedGold), [mergedGold]);
+  // DXY is already daily — build a forward-filled Map
   const dailyDxy = useMemo(() => {
     const map = new Map<string, number>();
-    for (const d of staticDxy) {
+    for (const d of mergedDxy) {
       map.set(d.date, d.value);
     }
     // Extend 90 days past last point
-    if (staticDxy.length > 0) {
-      const last = staticDxy[staticDxy.length - 1];
+    if (mergedDxy.length > 0) {
+      const last = mergedDxy[mergedDxy.length - 1];
       const lastTime = new Date(last.date).getTime();
       for (let i = 1; i <= 90; i++) {
         const date = new Date(lastTime + i * 86_400_000);
@@ -77,9 +105,9 @@ export default function App() {
       }
     }
     return map;
-  }, []);
+  }, [mergedDxy]);
 
-  // 4. Compute adjusted/converted data based on metric
+  // 5. Compute adjusted/converted data based on metric
   const processedData = useMemo((): AdjustedPricePoint[] | GoldPricePoint[] => {
     if (metric === 'GOLD') {
       return convertToGold(stitchedPrices, dailyGold);
@@ -88,13 +116,13 @@ export default function App() {
     return adjustPrices(stitchedPrices, deflator, anchorYear);
   }, [stitchedPrices, metric, anchorYear, dailyCpi, dailyM2, dailyGold, dailyDxy]);
 
-  // 5. Filter by timeframe
+  // 6. Filter by timeframe
   const filteredData = useMemo(
     () => filterByTimeframe(processedData as (AdjustedPricePoint | GoldPricePoint)[], timeframe),
     [processedData, timeframe]
   );
 
-  // 6. Latest point for hero
+  // 7. Latest point for hero
   const latestPoint = filteredData.length > 0
     ? filteredData[filteredData.length - 1]
     : null;
@@ -114,7 +142,7 @@ export default function App() {
         onLogScaleChange={setLogScale}
       />
       <PriceChart data={filteredData} metric={metric} logScale={logScale} />
-      <Footer hasLiveData={hasLiveData} />
+      <Footer liveDataStatus={liveDataStatus} />
     </>
   );
 }
