@@ -12,6 +12,7 @@ import { Header } from './components/Header';
 import { HeroPrice } from './components/HeroPrice';
 import { Controls } from './components/Controls';
 import { PriceChart } from './components/PriceChart';
+import { Calculator } from './components/Calculator';
 import { Explainer } from './components/Explainer';
 import { Footer } from './components/Footer';
 
@@ -180,6 +181,7 @@ export default function App() {
         onLogScaleChange={setLogScale}
       />
       <PriceChart data={filteredData} metric={metric} logScale={logScale} />
+      <Calculator prices={stitchedPrices} cpiMap={dailyCpi} m2Map={dailyM2} goldMap={dailyGold} />
       <Explainer stats={shockStats} />
       <Footer liveDataStatus={liveDataStatus} />
     </>

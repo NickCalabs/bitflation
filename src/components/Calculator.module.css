@@ -1,0 +1,190 @@
+.collapsed {
+  padding: 24px 0;
+}
+
+.toggleBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: border-color 0.15s;
+}
+
+.toggleBtn:hover {
+  border-color: var(--border-hover);
+}
+
+.section {
+  border-top: 1px solid var(--border);
+  padding: 24px 0;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.closeBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  color: var(--text-muted);
+  border-radius: var(--radius);
+  transition: color 0.15s;
+}
+
+.closeBtn:hover {
+  color: var(--text-primary);
+}
+
+.inputs {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.dateInput,
+.numberInput {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  background: var(--bg-control);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  outline: none;
+}
+
+.dateInput:hover,
+.numberInput:hover {
+  border-color: var(--border-hover);
+}
+
+.dateInput:focus-visible,
+.numberInput:focus-visible {
+  border-color: var(--accent-indigo);
+}
+
+.dateInput::-webkit-calendar-picker-indicator {
+  filter: invert(0.7);
+}
+
+.segmented {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.segBtn {
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border-right: 1px solid var(--border);
+  transition: background 0.15s, color 0.15s;
+}
+
+.segBtn:last-child {
+  border-right: none;
+}
+
+.segBtn:hover:not(.active) {
+  background: var(--bg-card);
+}
+
+.active {
+  background: var(--accent-indigo);
+  color: #fff;
+}
+
+.summary {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cardLabel {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cardValue {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.cardReturn {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.positive {
+  color: var(--accent-green);
+}
+
+.negative {
+  color: var(--accent-red);
+}
+
+.cardMeta {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.noData {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
