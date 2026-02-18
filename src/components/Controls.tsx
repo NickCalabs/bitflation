@@ -7,12 +7,14 @@ interface ControlsProps {
   onAnchorYearChange: (year: number) => void;
   timeframe: Timeframe;
   onTimeframeChange: (tf: Timeframe) => void;
-  metric: InflationMetric;
-  onMetricChange: (m: InflationMetric) => void;
+  selectedMetrics: InflationMetric[];
+  onSelectedMetricsChange: (metrics: InflationMetric[]) => void;
   logScale: boolean;
   onLogScaleChange: (v: boolean) => void;
   showEvents: boolean;
   onShowEventsChange: (v: boolean) => void;
+  showGap: boolean;
+  onShowGapChange: (v: boolean) => void;
   compareAssets: ComparisonAsset[];
   onCompareAssetsChange: (assets: ComparisonAsset[]) => void;
 }
@@ -25,10 +27,9 @@ const COMPARE_OPTIONS: { value: ComparisonAsset; label: string; color: string }[
   { value: 'housing', label: 'Housing', color: '#f97316' },
 ];
 
-const METRICS: { value: InflationMetric; label: string }[] = [
+const DEFLATOR_METRICS: { value: InflationMetric; label: string }[] = [
   { value: 'CPI', label: 'CPI' },
   { value: 'M2', label: 'M2' },
-  { value: 'GOLD', label: 'Gold' },
   { value: 'DXY', label: 'DXY' },
 ];
 
@@ -37,20 +38,42 @@ export function Controls({
   onAnchorYearChange,
   timeframe,
   onTimeframeChange,
-  metric,
-  onMetricChange,
+  selectedMetrics,
+  onSelectedMetricsChange,
   logScale,
   onLogScaleChange,
   showEvents,
   onShowEventsChange,
+  showGap,
+  onShowGapChange,
   compareAssets,
   onCompareAssetsChange,
 }: ControlsProps) {
   const [copied, setCopied] = useState(false);
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: currentYear - 2010 + 1 }, (_, i) => 2010 + i);
-  const hideAnchorYear = metric === 'GOLD';
-  const compareDisabled = metric === 'GOLD';
+  const isGoldMode = selectedMetrics.length === 1 && selectedMetrics[0] === 'GOLD';
+  const hideAnchorYear = isGoldMode;
+  const compareDisabled = isGoldMode;
+
+  const handleMetricClick = (m: InflationMetric) => {
+    if (m === 'GOLD') {
+      onSelectedMetricsChange(['GOLD']);
+      return;
+    }
+    if (isGoldMode) {
+      onSelectedMetricsChange([m]);
+      return;
+    }
+    if (selectedMetrics.includes(m)) {
+      if (selectedMetrics.length > 1) {
+        onSelectedMetricsChange(selectedMetrics.filter(x => x !== m));
+      }
+      // Don't deselect if it's the last one
+    } else {
+      onSelectedMetricsChange([...selectedMetrics.filter(x => x !== 'GOLD'), m]);
+    }
+  };
 
   const toggleCompare = (asset: ComparisonAsset) => {
     if (compareDisabled) return;
@@ -142,15 +165,40 @@ export function Controls({
       <div className={styles.group}>
         <span className={styles.label}>Metric</span>
         <div className={styles.segmented}>
-          {METRICS.map((m) => (
+          {DEFLATOR_METRICS.map((m) => (
             <button
               key={m.value}
-              className={`${styles.segBtn} ${metric === m.value ? styles.active : ''}`}
-              onClick={() => onMetricChange(m.value)}
+              className={`${styles.segBtn} ${selectedMetrics.includes(m.value) ? styles.active : ''}`}
+              onClick={() => handleMetricClick(m.value)}
             >
               {m.label}
             </button>
           ))}
+          <span className={styles.metricDivider} />
+          <button
+            className={`${styles.segBtn} ${isGoldMode ? styles.active : ''}`}
+            onClick={() => handleMetricClick('GOLD')}
+          >
+            Gold
+          </button>
+        </div>
+      </div>
+
+      <div className={`${styles.group} ${isGoldMode ? styles.compareDisabled : ''}`}>
+        <span className={styles.label}>Gap</span>
+        <div className={styles.segmented}>
+          <button
+            className={`${styles.segBtn} ${showGap ? styles.active : ''}`}
+            onClick={() => onShowGapChange(true)}
+          >
+            On
+          </button>
+          <button
+            className={`${styles.segBtn} ${!showGap ? styles.active : ''}`}
+            onClick={() => onShowGapChange(false)}
+          >
+            Off
+          </button>
         </div>
       </div>
 

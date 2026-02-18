@@ -55,6 +55,11 @@
   color: var(--text-primary);
 }
 
+.diffInline {
+  font-size: 0.7rem;
+  margin-left: 4px;
+}
+
 .diff {
   margin-top: 6px;
   padding-top: 6px;

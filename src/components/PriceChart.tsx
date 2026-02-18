@@ -10,7 +10,7 @@ import {
   ReferenceArea,
   ResponsiveContainer,
 } from 'recharts';
-import type { AdjustedPricePoint, GoldPricePoint, InflationMetric, ComparisonAsset, ComparisonPoint } from '../lib/types';
+import type { AdjustedPricePoint, GoldPricePoint, InflationMetric, DeflatorMetric, ComparisonAsset, ComparisonPoint, MultiMetricPoint } from '../lib/types';
 import { formatUSDCompact, formatChartDate, formatGoldOz, formatIndexed } from '../lib/formatters';
 import { EVENTS, filterEventsToRange, type ChartEvent } from '../lib/events';
 import { CustomTooltip } from './CustomTooltip';
@@ -30,11 +30,25 @@ const COMPARISON_LABELS: Record<ComparisonAsset, string> = {
   housing: 'Housing (delayed)',
 };
 
+const METRIC_COLORS: Record<DeflatorMetric, string> = {
+  CPI: '#4ade80',
+  M2: '#22d3ee',
+  DXY: '#fb923c',
+};
+
+const METRIC_KEYS: Record<DeflatorMetric, string> = {
+  CPI: 'cpiAdjusted',
+  M2: 'm2Adjusted',
+  DXY: 'dxyAdjusted',
+};
+
 interface PriceChartProps {
   data: ChartPoint[];
-  metric: InflationMetric;
+  selectedMetrics: InflationMetric[];
   logScale: boolean;
   showEvents: boolean;
+  showGap: boolean;
+  multiMetricData?: MultiMetricPoint[] | null;
   comparisonData?: ComparisonPoint[] | null;
   compareAssets?: ComparisonAsset[];
 }
@@ -54,11 +68,6 @@ interface EventLayout {
   position: 'insideTopRight' | 'insideTopLeft';
 }
 
-/**
- * Compute label layouts for events that are close together.
- * Close pairs get alternating positions (right/left) and staggered dy offsets
- * so labels fan out from the reference line instead of stacking.
- */
 function computeEventLayouts(events: ChartEvent[]): EventLayout[] {
   const layouts: EventLayout[] = events.map(() => ({
     dy: 0,
@@ -71,12 +80,10 @@ function computeEventLayouts(events: ChartEvent[]): EventLayout[] {
     const daysDiff = (currDate - prevDate) / 86_400_000;
 
     if (daysDiff < 120) {
-      // Flip to opposite side of the line
       layouts[i].position =
         layouts[i - 1].position === 'insideTopRight'
           ? 'insideTopLeft'
           : 'insideTopRight';
-      // Stagger vertically if same side would still overlap
       layouts[i].dy = layouts[i - 1].dy === 0 ? 14 : 0;
     }
   }
@@ -84,8 +91,13 @@ function computeEventLayouts(events: ChartEvent[]): EventLayout[] {
   return layouts;
 }
 
-export function PriceChart({ data, metric, logScale, showEvents, comparisonData, compareAssets = [] }: PriceChartProps) {
+export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGap: _showGap, multiMetricData, comparisonData, compareAssets = [] }: PriceChartProps) {
+  void _showGap; // Used in Phase 3 (purchasing power gap)
   const isComparison = comparisonData != null && comparisonData.length > 0 && compareAssets.length > 0;
+  const primaryMetric = selectedMetrics[0];
+  const isGold = selectedMetrics.length === 1 && selectedMetrics[0] === 'GOLD';
+  const deflatorMetrics = selectedMetrics.filter((m): m is DeflatorMetric => m !== 'GOLD');
+  const useMultiMetric = multiMetricData != null && multiMetricData.length > 0 && !isComparison;
 
   // Zoom state
   const [zoomStart, setZoomStart] = useState<string | null>(null);
@@ -93,7 +105,6 @@ export function PriceChart({ data, metric, logScale, showEvents, comparisonData,
   const [isZoomed, setIsZoomed] = useState(false);
   const [zoomRange, setZoomRange] = useState<[string, string] | null>(null);
 
-  // Track data reference to reset zoom when external data changes
   const dataRef = useRef(data);
   const compDataRef = useRef(comparisonData);
   useEffect(() => {
@@ -125,8 +136,7 @@ export function PriceChart({ data, metric, logScale, showEvents, comparisonData,
   const handleMouseUp = useCallback(() => {
     if (zoomStart && zoomEnd) {
       const [lo, hi] = zoomStart < zoomEnd ? [zoomStart, zoomEnd] : [zoomEnd, zoomStart];
-      // Only zoom if the range spans at least a few data points
-      const source = isComparison ? comparisonData! : data;
+      const source = isComparison ? comparisonData! : (useMultiMetric ? multiMetricData! : data);
       const startIdx = source.findIndex(d => d.date >= lo);
       const endIdx = source.findIndex(d => d.date >= hi);
       if (startIdx >= 0 && endIdx >= 0 && Math.abs(endIdx - startIdx) >= 5) {
@@ -136,19 +146,17 @@ export function PriceChart({ data, metric, logScale, showEvents, comparisonData,
     }
     setZoomStart(null);
     setZoomEnd(null);
-  }, [zoomStart, zoomEnd, data, comparisonData, isComparison]);
+  }, [zoomStart, zoomEnd, data, comparisonData, multiMetricData, isComparison, useMultiMetric]);
 
-  if (!isComparison && data.length === 0) return null;
-
-  const isGold = metric === 'GOLD';
+  if (!isComparison && data.length === 0 && !useMultiMetric) return null;
 
   const eventSource = isComparison ? comparisonData! : data;
   const visibleEvents = showEvents ? filterEventsToRange(EVENTS, eventSource) : [];
   const eventLayouts = computeEventLayouts(visibleEvents);
 
-  // Filter out zero/negative values for log scale
+  // Filter out zero/negative values for log scale (single metric mode)
   let chartData = data;
-  if (logScale) {
+  if (logScale && !useMultiMetric) {
     if (isGold) {
       chartData = (data as GoldPricePoint[]).filter(
         (d) => d.nominalPrice > 0 && d.goldOunces > 0
@@ -160,9 +168,16 @@ export function PriceChart({ data, metric, logScale, showEvents, comparisonData,
     }
   }
 
+  // Multi-metric chart data
+  let multiChartData = multiMetricData ?? [];
+  if (logScale && useMultiMetric) {
+    multiChartData = multiChartData.filter(d => d.nominalPrice > 0);
+  }
+
   // Apply zoom filtering
   if (isZoomed && zoomRange) {
     chartData = chartData.filter(d => d.date >= zoomRange[0] && d.date <= zoomRange[1]);
+    multiChartData = multiChartData.filter(d => d.date >= zoomRange[0] && d.date <= zoomRange[1]);
   }
 
   let zoomedCompData = comparisonData;
@@ -170,7 +185,7 @@ export function PriceChart({ data, metric, logScale, showEvents, comparisonData,
     zoomedCompData = comparisonData!.filter(d => d.date >= zoomRange[0] && d.date <= zoomRange[1]);
   }
 
-  const ticks = sampleTicks(isComparison ? zoomedCompData! : chartData);
+  const ticks = sampleTicks(isComparison ? zoomedCompData! : useMultiMetric ? multiChartData : chartData);
 
   const yAxisProps = {
     tick: { fill: '#71717a', fontSize: 11 } as const,
@@ -227,7 +242,7 @@ export function PriceChart({ data, metric, logScale, showEvents, comparisonData,
                 width={55}
                 {...compYAxisProps}
               />
-              <Tooltip content={<CustomTooltip metric={metric} compareAssets={compareAssets} />} />
+              <Tooltip content={<CustomTooltip selectedMetrics={selectedMetrics} compareAssets={compareAssets} />} />
               {visibleEvents.map((event, i) => (
                 <ReferenceLine
                   key={event.date}
@@ -356,7 +371,7 @@ export function PriceChart({ data, metric, logScale, showEvents, comparisonData,
                 width={65}
                 {...yAxisProps}
               />
-              <Tooltip content={<CustomTooltip metric={metric} />} />
+              <Tooltip content={<CustomTooltip selectedMetrics={selectedMetrics} />} />
               {visibleEvents.map((event, i) => (
                 <ReferenceLine
                   key={event.date}
@@ -417,13 +432,16 @@ export function PriceChart({ data, metric, logScale, showEvents, comparisonData,
     );
   }
 
+  // Default: deflator mode (single or multi-metric)
+  const chartSource = useMultiMetric ? multiChartData : chartData;
+
   return (
     <div className={styles.chartWrapper}>
       {resetButton}
       <div className={styles.chart}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
-            data={chartData}
+            data={chartSource}
             margin={{ top: 5, right: 10, left: 10, bottom: 5 }}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
@@ -443,7 +461,7 @@ export function PriceChart({ data, metric, logScale, showEvents, comparisonData,
               width={55}
               {...yAxisProps}
             />
-            <Tooltip content={<CustomTooltip metric={metric} />} />
+            <Tooltip content={<CustomTooltip selectedMetrics={selectedMetrics} />} />
             {visibleEvents.map((event, i) => (
               <ReferenceLine
                 key={event.date}
@@ -468,22 +486,37 @@ export function PriceChart({ data, metric, logScale, showEvents, comparisonData,
               stroke="#818cf8"
               strokeWidth={1.5}
               dot={false}
-              isAnimationActive={true}
+              isAnimationActive={!useMultiMetric}
               animationDuration={600}
               animationEasing="ease-in-out"
               name="Nominal"
             />
-            <Line
-              type="monotone"
-              dataKey="adjustedPrice"
-              stroke="#4ade80"
-              strokeWidth={1.5}
-              dot={false}
-              isAnimationActive={true}
+            {useMultiMetric ? (
+              deflatorMetrics.map(m => (
+                <Line
+                  key={m}
+                  type="monotone"
+                  dataKey={METRIC_KEYS[m]}
+                  stroke={METRIC_COLORS[m]}
+                  strokeWidth={1.5}
+                  dot={false}
+                  isAnimationActive={false}
+                  name={`${m}-adjusted`}
+                />
+              ))
+            ) : (
+              <Line
+                type="monotone"
+                dataKey="adjustedPrice"
+                stroke="#4ade80"
+                strokeWidth={1.5}
+                dot={false}
+                isAnimationActive={true}
                 animationDuration={600}
                 animationEasing="ease-in-out"
-              name="Adjusted"
-            />
+                name="Adjusted"
+              />
+            )}
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -492,10 +525,19 @@ export function PriceChart({ data, metric, logScale, showEvents, comparisonData,
           <span className={`${styles.legendDot} ${styles.nominal}`} />
           Nominal USD
         </div>
-        <div className={styles.legendItem}>
-          <span className={`${styles.legendDot} ${styles.adjusted}`} />
-          {metric}-adjusted
-        </div>
+        {useMultiMetric ? (
+          deflatorMetrics.map(m => (
+            <div key={m} className={styles.legendItem}>
+              <span className={styles.legendDot} style={{ background: METRIC_COLORS[m] }} />
+              {m}-adjusted
+            </div>
+          ))
+        ) : (
+          <div className={styles.legendItem}>
+            <span className={`${styles.legendDot} ${styles.adjusted}`} />
+            {primaryMetric}-adjusted
+          </div>
+        )}
       </div>
     </div>
   );

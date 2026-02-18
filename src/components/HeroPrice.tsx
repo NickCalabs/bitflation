@@ -6,9 +6,10 @@ interface HeroPriceProps {
   latestPoint: AdjustedPricePoint | GoldPricePoint | null;
   anchorYear: number;
   metric: InflationMetric;
+  secondaryMetrics?: { label: string; adjustedPrice: number; diff: number }[];
 }
 
-export function HeroPrice({ latestPoint, anchorYear, metric }: HeroPriceProps) {
+export function HeroPrice({ latestPoint, anchorYear, metric, secondaryMetrics }: HeroPriceProps) {
   if (!latestPoint) {
     return <div className={styles.noData}>Loading price data...</div>;
   }
@@ -44,7 +45,7 @@ export function HeroPrice({ latestPoint, anchorYear, metric }: HeroPriceProps) {
         <span className={styles.btcSymbol}>&#x20BF;</span>
         <span className={styles.adjustedPrice}>{formatUSD(adjustedPrice)}</span>
         <span className={styles.anchorLabel}>
-          in {anchorYear} USD{isEstimate && <span className={styles.estimate}> (est.)</span>}
+          in {anchorYear} USD ({metric}){isEstimate && <span className={styles.estimate}> (est.)</span>}
         </span>
       </div>
       <div className={styles.nominalRow}>
@@ -53,6 +54,15 @@ export function HeroPrice({ latestPoint, anchorYear, metric }: HeroPriceProps) {
       <div className={`${styles.diffRow} ${diff >= 0 ? styles.positive : styles.negative}`}>
         {formatPercent(diff)} purchasing power {diff >= 0 ? 'gain' : 'loss'}
       </div>
+      {secondaryMetrics && secondaryMetrics.length > 0 && (
+        <div className={styles.secondaryRow}>
+          {secondaryMetrics.map(s => (
+            <span key={s.label} className={styles.secondaryItem}>
+              {s.label}: {formatUSD(s.adjustedPrice)} ({formatPercent(s.diff)})
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

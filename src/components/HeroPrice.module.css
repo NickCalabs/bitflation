@@ -59,6 +59,20 @@
   color: var(--accent-red);
 }
 
+.secondaryRow {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.secondaryItem {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
 .noData {
   color: var(--text-muted);
   font-style: italic;

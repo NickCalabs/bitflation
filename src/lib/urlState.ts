@@ -5,28 +5,35 @@ const VALID_TIMEFRAMES: Timeframe[] = ['1Y', '5Y', 'ALL'];
 const VALID_COMPARE: ComparisonAsset[] = ['sp500', 'gold', 'housing'];
 
 const DEFAULTS = {
-  metric: 'CPI' as InflationMetric,
+  metrics: ['CPI'] as InflationMetric[],
   anchor: 2015,
   tf: 'ALL' as Timeframe,
   log: false,
+  gap: true,
 };
 
 interface UrlState {
-  metric: InflationMetric;
+  metrics: InflationMetric[];
   anchor: number;
   tf: Timeframe;
   log: boolean;
   events: boolean;
   compare: ComparisonAsset[];
+  gap: boolean;
 }
 
 export function parseUrlState(): Partial<UrlState> {
   const params = new URLSearchParams(window.location.search);
   const result: Partial<UrlState> = {};
 
-  const metric = params.get('metric')?.toUpperCase();
-  if (metric && VALID_METRICS.includes(metric as InflationMetric)) {
-    result.metric = metric as InflationMetric;
+  const metricParam = params.get('metric');
+  if (metricParam) {
+    const parsed = metricParam.split(',')
+      .map(m => m.toUpperCase())
+      .filter((m): m is InflationMetric => VALID_METRICS.includes(m as InflationMetric));
+    if (parsed.length > 0) {
+      result.metrics = parsed;
+    }
   }
 
   const anchor = params.get('anchor');
@@ -62,14 +69,20 @@ export function parseUrlState(): Partial<UrlState> {
     }
   }
 
+  const gap = params.get('gap');
+  if (gap === '0') {
+    result.gap = false;
+  }
+
   return result;
 }
 
 export function writeUrlState(state: UrlState): void {
   const params = new URLSearchParams();
 
-  if (state.metric !== DEFAULTS.metric) {
-    params.set('metric', state.metric.toLowerCase());
+  const metricsKey = state.metrics.map(m => m.toLowerCase()).join(',');
+  if (metricsKey !== DEFAULTS.metrics[0].toLowerCase()) {
+    params.set('metric', metricsKey);
   }
   if (state.anchor !== DEFAULTS.anchor) {
     params.set('anchor', String(state.anchor));
@@ -85,6 +98,9 @@ export function writeUrlState(state: UrlState): void {
   }
   if (state.compare.length > 0) {
     params.set('compare', state.compare.join(','));
+  }
+  if (!state.gap) {
+    params.set('gap', '0');
   }
 
   const search = params.toString();

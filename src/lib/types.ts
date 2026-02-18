@@ -18,6 +18,17 @@ export type Timeframe = '1Y' | '5Y' | 'ALL';
 
 export type InflationMetric = 'CPI' | 'M2' | 'GOLD' | 'DXY';
 
+export type DeflatorMetric = 'CPI' | 'M2' | 'DXY';
+
+export interface MultiMetricPoint {
+  date: string;
+  nominalPrice: number;
+  cpiAdjusted?: number;
+  m2Adjusted?: number;
+  dxyAdjusted?: number;
+  inflationGap?: number;  // nominalPrice - primaryAdjusted (for gap fill)
+}
+
 export type LiveDataStatus = 'all' | 'partial' | 'none';
 
 export interface CalculatorResult {

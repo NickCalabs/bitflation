@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import type { Timeframe, InflationMetric, LiveDataStatus, PricePoint, DeflatorPoint, AdjustedPricePoint, GoldPricePoint, ComparisonAsset, ComparisonPoint } from './lib/types';
+import type { Timeframe, InflationMetric, DeflatorMetric, LiveDataStatus, PricePoint, DeflatorPoint, AdjustedPricePoint, GoldPricePoint, ComparisonAsset, ComparisonPoint, MultiMetricPoint } from './lib/types';
 import { interpolateMonthlyToDaily } from './lib/interpolateCpi';
 import { adjustPrices } from './lib/adjustPrices';
 import { convertToGold } from './lib/convertToGold';
@@ -39,9 +39,10 @@ const initial = parseUrlState();
 export default function App() {
   const [anchorYear, setAnchorYear] = useState(initial.anchor ?? 2015);
   const [timeframe, setTimeframe] = useState<Timeframe>(initial.tf ?? 'ALL');
-  const [metric, setMetric] = useState<InflationMetric>(initial.metric ?? 'CPI');
+  const [selectedMetrics, setSelectedMetrics] = useState<InflationMetric[]>(initial.metrics ?? ['CPI']);
   const [logScale, setLogScale] = useState(initial.log ?? false);
   const [showEvents, setShowEvents] = useState(initial.events ?? false);
+  const [showGap, setShowGap] = useState(initial.gap ?? true);
   const [compareAssets, setCompareAssets] = useState<ComparisonAsset[]>(initial.compare ?? []);
   const [livePrices, setLivePrices] = useState<PricePoint[]>([]);
   const [liveDxy, setLiveDxy] = useState<DeflatorPoint[]>([]);
@@ -49,9 +50,12 @@ export default function App() {
   const [liveSp500, setLiveSp500] = useState<DeflatorPoint[]>([]);
   const [liveDataStatus, setLiveDataStatus] = useState<LiveDataStatus>('none');
 
+  // Derived state
+  const primaryMetric = selectedMetrics[0];
+  const isGoldMode = selectedMetrics.length === 1 && selectedMetrics[0] === 'GOLD';
+  const deflatorMetrics = selectedMetrics.filter((m): m is DeflatorMetric => m !== 'GOLD');
+
   // 1. Fetch all live data on mount
-  // Note: Gold is not fetched from FRED — the daily LBMA series was discontinued.
-  // Gold data comes only from static JSON (datahub.io monthly).
   useEffect(() => {
     Promise.all([
       fetchLivePrices(),
@@ -64,7 +68,6 @@ export default function App() {
       if (m2Data.length > 0) setLiveM2(m2Data);
       if (sp500Data.length > 0) setLiveSp500(sp500Data);
 
-      // Badge threshold stays at 3 (BTC + DXY + M2) — SP500 is a comparison asset
       const successes = [btcPrices, dxyData, m2Data].filter(
         (d) => d.length > 0
       ).length;
@@ -76,8 +79,8 @@ export default function App() {
 
   // 2. Sync state → URL
   useEffect(() => {
-    writeUrlState({ metric, anchor: anchorYear, tf: timeframe, log: logScale, events: showEvents, compare: compareAssets });
-  }, [metric, anchorYear, timeframe, logScale, showEvents, compareAssets]);
+    writeUrlState({ metrics: selectedMetrics, anchor: anchorYear, tf: timeframe, log: logScale, events: showEvents, compare: compareAssets, gap: showGap });
+  }, [selectedMetrics, anchorYear, timeframe, logScale, showEvents, compareAssets, showGap]);
 
   // 3. Stitch static + live
   const stitchedPrices = useMemo(
@@ -118,7 +121,6 @@ export default function App() {
 
   // 4b. Comparison asset data
   const stitchedSp500 = useMemo(() => {
-    // Convert live DeflatorPoint[] → PricePoint[] for stitching
     const liveSp500AsPrices: PricePoint[] = liveSp500.map((d) => ({
       date: d.date,
       price: d.value,
@@ -141,14 +143,55 @@ export default function App() {
     return result;
   }, [dailyGold]);
 
-  // 5. Compute adjusted/converted data based on metric
+  // 5. Compute adjusted/converted data based on primary metric (for HeroPrice)
   const processedData = useMemo((): AdjustedPricePoint[] | GoldPricePoint[] => {
-    if (metric === 'GOLD') {
+    if (primaryMetric === 'GOLD') {
       return convertToGold(stitchedPrices, dailyGold);
     }
-    const deflator = metric === 'CPI' ? dailyCpi : metric === 'M2' ? dailyM2 : dailyDxy;
+    const deflator = primaryMetric === 'CPI' ? dailyCpi : primaryMetric === 'M2' ? dailyM2 : dailyDxy;
     return adjustPrices(stitchedPrices, deflator, anchorYear);
-  }, [stitchedPrices, metric, anchorYear, dailyCpi, dailyM2, dailyGold, dailyDxy]);
+  }, [stitchedPrices, primaryMetric, anchorYear, dailyCpi, dailyM2, dailyGold, dailyDxy]);
+
+  // 5b. Multi-metric data (for PriceChart when multiple deflators selected)
+  const DEFLATOR_MAP_MEMO = useMemo((): Record<DeflatorMetric, Map<string, number>> => ({
+    CPI: dailyCpi, M2: dailyM2, DXY: dailyDxy,
+  }), [dailyCpi, dailyM2, dailyDxy]);
+
+  const multiMetricData = useMemo((): MultiMetricPoint[] | null => {
+    if (isGoldMode || deflatorMetrics.length === 0) return null;
+
+    // Run adjustPrices for each selected deflator
+    const series = deflatorMetrics.map(m => ({
+      metric: m,
+      data: new Map(adjustPrices(stitchedPrices, DEFLATOR_MAP_MEMO[m], anchorYear).map(p => [p.date, p])),
+    }));
+
+    // Primary series drives the date list
+    const primarySeries = series[0];
+    const result: MultiMetricPoint[] = [];
+
+    for (const [date, point] of primarySeries.data) {
+      const mp: MultiMetricPoint = { date, nominalPrice: point.nominalPrice };
+
+      for (const { metric: m, data } of series) {
+        const adjusted = data.get(date);
+        if (!adjusted) continue;
+        const key = `${m.toLowerCase()}Adjusted` as keyof MultiMetricPoint;
+        (mp as unknown as Record<string, number>)[key] = adjusted.adjustedPrice;
+      }
+
+      // Inflation gap = nominal - primary adjusted
+      const primaryKey = `${deflatorMetrics[0].toLowerCase()}Adjusted` as keyof MultiMetricPoint;
+      const primaryVal = mp[primaryKey] as number | undefined;
+      if (primaryVal !== undefined) {
+        mp.inflationGap = mp.nominalPrice - primaryVal;
+      }
+
+      result.push(mp);
+    }
+
+    return result;
+  }, [isGoldMode, deflatorMetrics, stitchedPrices, anchorYear, DEFLATOR_MAP_MEMO]);
 
   // 6. Filter by timeframe
   const filteredData = useMemo(
@@ -156,10 +199,27 @@ export default function App() {
     [processedData, timeframe]
   );
 
+  const filteredMultiMetric = useMemo(() => {
+    if (!multiMetricData) return null;
+    return filterByTimeframe(multiMetricData, timeframe);
+  }, [multiMetricData, timeframe]);
+
   // 7. Latest point for hero
   const latestPoint = filteredData.length > 0
     ? filteredData[filteredData.length - 1]
     : null;
+
+  // 7b. Secondary hero metrics
+  const secondaryHeroMetrics = useMemo(() => {
+    if (!filteredMultiMetric || deflatorMetrics.length <= 1) return undefined;
+    const last = filteredMultiMetric[filteredMultiMetric.length - 1];
+    if (!last) return undefined;
+    return deflatorMetrics.slice(1).map(m => {
+      const key = `${m.toLowerCase()}Adjusted` as keyof MultiMetricPoint;
+      const val = last[key] as number;
+      return { label: m, adjustedPrice: val, diff: (val - last.nominalPrice) / last.nominalPrice };
+    }).filter(s => s.adjustedPrice !== undefined);
+  }, [filteredMultiMetric, deflatorMetrics]);
 
   // 8. Shock stats for explainer (since 2020-01-01)
   const shockStats = useMemo(() => {
@@ -200,9 +260,9 @@ export default function App() {
 
   // 9. Comparison data pipeline (normalized to index 100)
   const comparisonData = useMemo((): ComparisonPoint[] | null => {
-    if (compareAssets.length === 0 || metric === 'GOLD') return null;
+    if (compareAssets.length === 0 || isGoldMode) return null;
 
-    const deflator = metric === 'CPI' ? dailyCpi : metric === 'M2' ? dailyM2 : dailyDxy;
+    const deflator = primaryMetric === 'CPI' ? dailyCpi : primaryMetric === 'M2' ? dailyM2 : dailyDxy;
 
     // BTC adjusted + filtered
     const btcAdjusted = adjustPrices(stitchedPrices, deflator, anchorYear);
@@ -227,31 +287,35 @@ export default function App() {
     }
 
     return normalizeToIndex(btcFiltered, assetSeries);
-  }, [compareAssets, metric, anchorYear, timeframe, stitchedPrices, stitchedSp500, goldAsPrices, dailyHousing, dailyCpi, dailyM2, dailyDxy]);
+  }, [compareAssets, primaryMetric, isGoldMode, anchorYear, timeframe, stitchedPrices, stitchedSp500, goldAsPrices, dailyHousing, dailyCpi, dailyM2, dailyDxy]);
 
   return (
     <>
       <Header />
-      <HeroPrice latestPoint={latestPoint} anchorYear={anchorYear} metric={metric} />
+      <HeroPrice latestPoint={latestPoint} anchorYear={anchorYear} metric={primaryMetric} secondaryMetrics={secondaryHeroMetrics} />
       <Controls
         anchorYear={anchorYear}
         onAnchorYearChange={setAnchorYear}
         timeframe={timeframe}
         onTimeframeChange={setTimeframe}
-        metric={metric}
-        onMetricChange={setMetric}
+        selectedMetrics={selectedMetrics}
+        onSelectedMetricsChange={setSelectedMetrics}
         logScale={logScale}
         onLogScaleChange={setLogScale}
         showEvents={showEvents}
         onShowEventsChange={setShowEvents}
+        showGap={showGap}
+        onShowGapChange={setShowGap}
         compareAssets={compareAssets}
         onCompareAssetsChange={setCompareAssets}
       />
       <PriceChart
         data={filteredData}
-        metric={metric}
+        selectedMetrics={selectedMetrics}
         logScale={logScale}
         showEvents={showEvents}
+        showGap={showGap}
+        multiMetricData={filteredMultiMetric}
         comparisonData={comparisonData}
         compareAssets={compareAssets}
       />
