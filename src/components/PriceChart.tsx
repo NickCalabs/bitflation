@@ -47,21 +47,39 @@ function sampleTicks(data: { date: string }[]): string[] {
   return ticks;
 }
 
+interface EventLayout {
+  dy: number;
+  position: 'insideTopRight' | 'insideTopLeft';
+}
+
 /**
- * Compute dy offsets for events that are close together (within 90 days)
- * to prevent label overlap. Alternates between 0 and 16.
+ * Compute label layouts for events that are close together.
+ * Close pairs get alternating positions (right/left) and staggered dy offsets
+ * so labels fan out from the reference line instead of stacking.
  */
-function computeLabelOffsets(events: ChartEvent[]): number[] {
-  const offsets = events.map(() => 0);
+function computeEventLayouts(events: ChartEvent[]): EventLayout[] {
+  const layouts: EventLayout[] = events.map(() => ({
+    dy: 0,
+    position: 'insideTopRight',
+  }));
+
   for (let i = 1; i < events.length; i++) {
     const prevDate = new Date(events[i - 1].date).getTime();
     const currDate = new Date(events[i].date).getTime();
     const daysDiff = (currDate - prevDate) / 86_400_000;
-    if (daysDiff < 90) {
-      offsets[i] = offsets[i - 1] === 0 ? 16 : 0;
+
+    if (daysDiff < 120) {
+      // Flip to opposite side of the line
+      layouts[i].position =
+        layouts[i - 1].position === 'insideTopRight'
+          ? 'insideTopLeft'
+          : 'insideTopRight';
+      // Stagger vertically if same side would still overlap
+      layouts[i].dy = layouts[i - 1].dy === 0 ? 14 : 0;
     }
   }
-  return offsets;
+
+  return layouts;
 }
 
 export function PriceChart({ data, metric, logScale, showEvents, comparisonData, compareAssets = [] }: PriceChartProps) {
@@ -73,7 +91,7 @@ export function PriceChart({ data, metric, logScale, showEvents, comparisonData,
 
   const eventSource = isComparison ? comparisonData! : data;
   const visibleEvents = showEvents ? filterEventsToRange(EVENTS, eventSource) : [];
-  const labelOffsets = computeLabelOffsets(visibleEvents);
+  const eventLayouts = computeEventLayouts(visibleEvents);
 
   // Filter out zero/negative values for log scale
   let chartData = data;
@@ -137,11 +155,11 @@ export function PriceChart({ data, metric, logScale, showEvents, comparisonData,
                   strokeWidth={1}
                   label={{
                     value: event.label,
-                    position: 'insideTopRight',
+                    position: eventLayouts[i].position,
                     fill: event.color,
                     fontSize: 10,
                     fontWeight: 500,
-                    dy: labelOffsets[i],
+                    dy: eventLayouts[i].dy,
                   }}
                 />
               ))}
@@ -259,11 +277,11 @@ export function PriceChart({ data, metric, logScale, showEvents, comparisonData,
                   strokeWidth={1}
                   label={{
                     value: event.label,
-                    position: 'insideTopRight',
+                    position: eventLayouts[i].position,
                     fill: event.color,
                     fontSize: 10,
                     fontWeight: 500,
-                    dy: labelOffsets[i],
+                    dy: eventLayouts[i].dy,
                   }}
                 />
               ))}
@@ -337,11 +355,11 @@ export function PriceChart({ data, metric, logScale, showEvents, comparisonData,
                 strokeWidth={1}
                 label={{
                   value: event.label,
-                  position: 'insideTopRight',
+                  position: eventLayouts[i].position,
                   fill: event.color,
                   fontSize: 10,
                   fontWeight: 500,
-                  dy: labelOffsets[i],
+                  dy: eventLayouts[i].dy,
                 }}
               />
             ))}
