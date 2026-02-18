@@ -6,6 +6,7 @@ import { convertToGold } from './lib/convertToGold';
 import { fetchLivePrices } from './lib/fetchLivePrices';
 import { stitchPrices } from './lib/stitchPrices';
 import { filterByTimeframe } from './lib/filterByTimeframe';
+import { parseUrlState, writeUrlState } from './lib/urlState';
 import { Header } from './components/Header';
 import { HeroPrice } from './components/HeroPrice';
 import { Controls } from './components/Controls';
@@ -24,11 +25,13 @@ const staticM2 = staticM2Data as DeflatorPoint[];
 const staticGold = staticGoldData as DeflatorPoint[];
 const staticDxy = staticDxyData as DeflatorPoint[];
 
+const initial = parseUrlState();
+
 export default function App() {
-  const [anchorYear, setAnchorYear] = useState(2015);
-  const [timeframe, setTimeframe] = useState<Timeframe>('ALL');
-  const [metric, setMetric] = useState<InflationMetric>('CPI');
-  const [logScale, setLogScale] = useState(false);
+  const [anchorYear, setAnchorYear] = useState(initial.anchor ?? 2015);
+  const [timeframe, setTimeframe] = useState<Timeframe>(initial.tf ?? 'ALL');
+  const [metric, setMetric] = useState<InflationMetric>(initial.metric ?? 'CPI');
+  const [logScale, setLogScale] = useState(initial.log ?? false);
   const [livePrices, setLivePrices] = useState<PricePoint[]>([]);
   const [hasLiveData, setHasLiveData] = useState(false);
 
@@ -42,7 +45,12 @@ export default function App() {
     });
   }, []);
 
-  // 2. Stitch static + live
+  // 2. Sync state → URL
+  useEffect(() => {
+    writeUrlState({ metric, anchor: anchorYear, tf: timeframe, log: logScale });
+  }, [metric, anchorYear, timeframe, logScale]);
+
+  // 3. Stitch static + live
   const stitchedPrices = useMemo(
     () => stitchPrices(staticBtc, livePrices),
     [livePrices]

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Timeframe, InflationMetric } from '../lib/types';
 import styles from './Controls.module.css';
 
@@ -31,9 +32,17 @@ export function Controls({
   logScale,
   onLogScaleChange,
 }: ControlsProps) {
+  const [copied, setCopied] = useState(false);
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: currentYear - 2010 + 1 }, (_, i) => 2010 + i);
   const hideAnchorYear = metric === 'GOLD';
+
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   return (
     <div className={styles.controls}>
@@ -101,6 +110,16 @@ export function Controls({
             </button>
           ))}
         </div>
+      </div>
+
+      <div className={styles.shareWrap}>
+        <button className={styles.shareBtn} onClick={handleShare} title="Copy link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+          </svg>
+        </button>
+        {copied && <span className={styles.toast}>Link copied!</span>}
       </div>
     </div>
   );
