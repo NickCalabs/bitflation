@@ -94,7 +94,9 @@ export function PriceChart({ data, metric, logScale }: PriceChartProps) {
                 stroke="#818cf8"
                 strokeWidth={1.5}
                 dot={false}
-                isAnimationActive={false}
+                isAnimationActive={true}
+                animationDuration={600}
+                animationEasing="ease-in-out"
                 name="Nominal USD"
               />
               <Line
@@ -104,7 +106,9 @@ export function PriceChart({ data, metric, logScale }: PriceChartProps) {
                 stroke="#facc15"
                 strokeWidth={1.5}
                 dot={false}
-                isAnimationActive={false}
+                isAnimationActive={true}
+                animationDuration={600}
+                animationEasing="ease-in-out"
                 name="Gold (oz)"
               />
             </LineChart>
@@ -150,7 +154,9 @@ export function PriceChart({ data, metric, logScale }: PriceChartProps) {
               stroke="#818cf8"
               strokeWidth={1.5}
               dot={false}
-              isAnimationActive={false}
+              isAnimationActive={true}
+                animationDuration={600}
+                animationEasing="ease-in-out"
               name="Nominal"
             />
             <Line
@@ -159,7 +165,9 @@ export function PriceChart({ data, metric, logScale }: PriceChartProps) {
               stroke="#4ade80"
               strokeWidth={1.5}
               dot={false}
-              isAnimationActive={false}
+              isAnimationActive={true}
+                animationDuration={600}
+                animationEasing="ease-in-out"
               name="Adjusted"
             />
           </LineChart>

@@ -36,29 +36,28 @@ export default function App() {
   const [metric, setMetric] = useState<InflationMetric>(initial.metric ?? 'CPI');
   const [logScale, setLogScale] = useState(initial.log ?? false);
   const [livePrices, setLivePrices] = useState<PricePoint[]>([]);
-  const [liveGold, setLiveGold] = useState<DeflatorPoint[]>([]);
   const [liveDxy, setLiveDxy] = useState<DeflatorPoint[]>([]);
   const [liveM2, setLiveM2] = useState<DeflatorPoint[]>([]);
   const [liveDataStatus, setLiveDataStatus] = useState<LiveDataStatus>('none');
 
   // 1. Fetch all live data on mount
+  // Note: Gold is not fetched from FRED — the daily LBMA series was discontinued.
+  // Gold data comes only from static JSON (datahub.io monthly).
   useEffect(() => {
     Promise.all([
       fetchLivePrices(),
-      fetchFred('GOLDAMGBD228NLBM', '2025-01-01'),
       fetchFred('DTWEXBGS', '2025-06-01'),
       fetchFred('M2SL', '2025-06-01'),
-    ]).then(([btcPrices, goldData, dxyData, m2Data]) => {
+    ]).then(([btcPrices, dxyData, m2Data]) => {
       if (btcPrices.length > 0) setLivePrices(btcPrices);
-      if (goldData.length > 0) setLiveGold(goldData);
       if (dxyData.length > 0) setLiveDxy(dxyData);
       if (m2Data.length > 0) setLiveM2(m2Data);
 
-      const successes = [btcPrices, goldData, dxyData, m2Data].filter(
+      const successes = [btcPrices, dxyData, m2Data].filter(
         (d) => d.length > 0
       ).length;
       setLiveDataStatus(
-        successes === 4 ? 'all' : successes > 0 ? 'partial' : 'none'
+        successes === 3 ? 'all' : successes > 0 ? 'partial' : 'none'
       );
     });
   }, []);
@@ -73,10 +72,6 @@ export default function App() {
     () => stitchPrices(staticBtc, livePrices),
     [livePrices]
   );
-  const mergedGold = useMemo(
-    () => stitchDeflators(staticGold, liveGold),
-    [liveGold]
-  );
   const mergedDxy = useMemo(
     () => stitchDeflators(staticDxy, liveDxy),
     [liveDxy]
@@ -89,7 +84,7 @@ export default function App() {
   // 4. Interpolate monthly data to daily
   const dailyCpi = useMemo(() => interpolateMonthlyToDaily(staticCpi), []);
   const dailyM2 = useMemo(() => interpolateMonthlyToDaily(mergedM2), [mergedM2]);
-  const dailyGold = useMemo(() => interpolateMonthlyToDaily(mergedGold), [mergedGold]);
+  const dailyGold = useMemo(() => interpolateMonthlyToDaily(staticGold), []);
   // DXY is already daily — build a forward-filled Map
   const dailyDxy = useMemo(() => {
     const map = new Map<string, number>();
