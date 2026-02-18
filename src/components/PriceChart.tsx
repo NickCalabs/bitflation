@@ -1,3 +1,4 @@
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   LineChart,
   Line,
@@ -6,6 +7,7 @@ import {
   CartesianGrid,
   Tooltip,
   ReferenceLine,
+  ReferenceArea,
   ResponsiveContainer,
 } from 'recharts';
 import type { AdjustedPricePoint, GoldPricePoint, InflationMetric, ComparisonAsset, ComparisonPoint } from '../lib/types';
@@ -85,6 +87,57 @@ function computeEventLayouts(events: ChartEvent[]): EventLayout[] {
 export function PriceChart({ data, metric, logScale, showEvents, comparisonData, compareAssets = [] }: PriceChartProps) {
   const isComparison = comparisonData != null && comparisonData.length > 0 && compareAssets.length > 0;
 
+  // Zoom state
+  const [zoomStart, setZoomStart] = useState<string | null>(null);
+  const [zoomEnd, setZoomEnd] = useState<string | null>(null);
+  const [isZoomed, setIsZoomed] = useState(false);
+  const [zoomRange, setZoomRange] = useState<[string, string] | null>(null);
+
+  // Track data reference to reset zoom when external data changes
+  const dataRef = useRef(data);
+  const compDataRef = useRef(comparisonData);
+  useEffect(() => {
+    if (dataRef.current !== data || compDataRef.current !== comparisonData) {
+      dataRef.current = data;
+      compDataRef.current = comparisonData;
+      setZoomRange(null);
+      setIsZoomed(false);
+      setZoomStart(null);
+      setZoomEnd(null);
+    }
+  }, [data, comparisonData]);
+
+  const resetZoom = useCallback(() => {
+    setZoomRange(null);
+    setIsZoomed(false);
+    setZoomStart(null);
+    setZoomEnd(null);
+  }, []);
+
+  const handleMouseDown = useCallback((e: { activeLabel?: string | number } | null) => {
+    if (e?.activeLabel != null) setZoomStart(String(e.activeLabel));
+  }, []);
+
+  const handleMouseMove = useCallback((e: { activeLabel?: string | number } | null) => {
+    if (zoomStart && e?.activeLabel != null) setZoomEnd(String(e.activeLabel));
+  }, [zoomStart]);
+
+  const handleMouseUp = useCallback(() => {
+    if (zoomStart && zoomEnd) {
+      const [lo, hi] = zoomStart < zoomEnd ? [zoomStart, zoomEnd] : [zoomEnd, zoomStart];
+      // Only zoom if the range spans at least a few data points
+      const source = isComparison ? comparisonData! : data;
+      const startIdx = source.findIndex(d => d.date >= lo);
+      const endIdx = source.findIndex(d => d.date >= hi);
+      if (startIdx >= 0 && endIdx >= 0 && Math.abs(endIdx - startIdx) >= 5) {
+        setZoomRange([lo, hi]);
+        setIsZoomed(true);
+      }
+    }
+    setZoomStart(null);
+    setZoomEnd(null);
+  }, [zoomStart, zoomEnd, data, comparisonData, isComparison]);
+
   if (!isComparison && data.length === 0) return null;
 
   const isGold = metric === 'GOLD';
@@ -107,7 +160,17 @@ export function PriceChart({ data, metric, logScale, showEvents, comparisonData,
     }
   }
 
-  const ticks = sampleTicks(chartData);
+  // Apply zoom filtering
+  if (isZoomed && zoomRange) {
+    chartData = chartData.filter(d => d.date >= zoomRange[0] && d.date <= zoomRange[1]);
+  }
+
+  let zoomedCompData = comparisonData;
+  if (isComparison && isZoomed && zoomRange) {
+    zoomedCompData = comparisonData!.filter(d => d.date >= zoomRange[0] && d.date <= zoomRange[1]);
+  }
+
+  const ticks = sampleTicks(isComparison ? zoomedCompData! : chartData);
 
   const yAxisProps = {
     tick: { fill: '#71717a', fontSize: 11 } as const,
@@ -116,9 +179,21 @@ export function PriceChart({ data, metric, logScale, showEvents, comparisonData,
     ...(logScale ? { scale: 'log' as const, domain: [1, 'auto'] as [number, 'auto'] } : {}),
   };
 
+  const zoomOverlay = zoomStart && zoomEnd && (
+    <ReferenceArea
+      x1={zoomStart}
+      x2={zoomEnd}
+      strokeOpacity={0.3}
+      fill="rgba(129,140,248,0.2)"
+    />
+  );
+
+  const resetButton = isZoomed && (
+    <button className={styles.resetZoom} onClick={resetZoom}>Reset zoom</button>
+  );
+
   // Comparison chart mode (indexed to 100)
   if (isComparison) {
-    const compTicks = sampleTicks(comparisonData!);
     const compYAxisProps = {
       tick: { fill: '#71717a', fontSize: 11 } as const,
       axisLine: false as const,
@@ -128,14 +203,21 @@ export function PriceChart({ data, metric, logScale, showEvents, comparisonData,
 
     return (
       <div className={styles.chartWrapper}>
+        {resetButton}
         <div className={styles.chart}>
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={comparisonData!} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+            <LineChart
+              data={zoomedCompData!}
+              margin={{ top: 5, right: 10, left: 10, bottom: 5 }}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+            >
               <CartesianGrid stroke="#333" strokeDasharray="4 4" vertical={false} />
               <XAxis
                 dataKey="date"
                 tickFormatter={formatChartDate}
-                ticks={compTicks}
+                ticks={ticks}
                 tick={{ fill: '#71717a', fontSize: 11 }}
                 axisLine={{ stroke: '#333' }}
                 tickLine={false}
@@ -163,6 +245,7 @@ export function PriceChart({ data, metric, logScale, showEvents, comparisonData,
                   }}
                 />
               ))}
+              {zoomOverlay}
               <Line
                 type="monotone"
                 dataKey="btc"
@@ -241,9 +324,16 @@ export function PriceChart({ data, metric, logScale, showEvents, comparisonData,
   if (isGold) {
     return (
       <div className={styles.chartWrapper}>
+        {resetButton}
         <div className={styles.chart}>
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+            <LineChart
+              data={chartData}
+              margin={{ top: 5, right: 10, left: 10, bottom: 5 }}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+            >
               <CartesianGrid stroke="#333" strokeDasharray="4 4" vertical={false} />
               <XAxis
                 dataKey="date"
@@ -285,6 +375,7 @@ export function PriceChart({ data, metric, logScale, showEvents, comparisonData,
                   }}
                 />
               ))}
+              {zoomOverlay}
               <Line
                 yAxisId="usd"
                 type="monotone"
@@ -328,9 +419,16 @@ export function PriceChart({ data, metric, logScale, showEvents, comparisonData,
 
   return (
     <div className={styles.chartWrapper}>
+      {resetButton}
       <div className={styles.chart}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+          <LineChart
+            data={chartData}
+            margin={{ top: 5, right: 10, left: 10, bottom: 5 }}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+          >
             <CartesianGrid stroke="#333" strokeDasharray="4 4" vertical={false} />
             <XAxis
               dataKey="date"
@@ -363,6 +461,7 @@ export function PriceChart({ data, metric, logScale, showEvents, comparisonData,
                 }}
               />
             ))}
+            {zoomOverlay}
             <Line
               type="monotone"
               dataKey="nominalPrice"

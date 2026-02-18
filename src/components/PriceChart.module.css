@@ -1,5 +1,25 @@
 .chartWrapper {
+  position: relative;
   padding: 8px 0 24px;
+}
+
+.resetZoom {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  background: var(--bg-control);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  z-index: 10;
+}
+
+.resetZoom:hover {
+  border-color: var(--border-hover);
+  color: var(--text-primary);
 }
 
 .chart {
