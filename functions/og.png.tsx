@@ -6,23 +6,22 @@ const CPI_ANCHOR_2015 = 237.017;
 const CPI_CURRENT = 325.252; // Jan 2026
 const M2_ANCHOR_2015 = 12055.6; // billions, 2015 avg
 const M2_CURRENT = 22411; // billions, late 2025
-const FALLBACK_BTC_PRICE = 97000;
 
 interface Env {
   ASSETS: Fetcher;
 }
 
-async function fetchBtcPrice(): Promise<number> {
+async function fetchBtcPrice(): Promise<number | null> {
   try {
     const res = await fetch(
       "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd",
       { headers: { Accept: "application/json" } }
     );
-    if (!res.ok) return FALLBACK_BTC_PRICE;
+    if (!res.ok) return null;
     const data = (await res.json()) as { bitcoin?: { usd?: number } };
-    return data.bitcoin?.usd ?? FALLBACK_BTC_PRICE;
+    return data.bitcoin?.usd ?? null;
   } catch {
-    return FALLBACK_BTC_PRICE;
+    return null;
   }
 }
 
@@ -42,6 +41,15 @@ function formatUsd(value: number): string {
   }).format(value);
 }
 
+function logoToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return `data:image/png;base64,${btoa(binary)}`;
+}
+
 export const onRequest: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url);
 
@@ -51,15 +59,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   const cached = await cache.match(cacheKey);
   if (cached) return cached;
 
-  // Fetch live BTC price
+  // Fetch live BTC price (null if unavailable)
   const nominalPrice = await fetchBtcPrice();
-  // BFI = 50% CPI growth + 50% M2 growth, normalized to anchor year
-  const bfiGrowth = 0.5 * (CPI_CURRENT / CPI_ANCHOR_2015) + 0.5 * (M2_CURRENT / M2_ANCHOR_2015);
-  const adjustedPrice = Math.round(nominalPrice / bfiGrowth);
-  const lossPercent = (
-    ((nominalPrice - adjustedPrice) / nominalPrice) *
-    100
-  ).toFixed(1);
 
   // Load fonts + logo in parallel
   const [jetBrainsBold, interRegular, interBold, logoBuffer] =
@@ -70,16 +71,14 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       loadAsset(context.env, "/og/bitflation-logo.png"),
     ]);
 
-  // Convert logo to base64 data URI
-  const logoBytes = new Uint8Array(logoBuffer);
-  let logoBinary = "";
-  for (let i = 0; i < logoBytes.length; i++) {
-    logoBinary += String.fromCharCode(logoBytes[i]);
-  }
-  const logoBase64 = `data:image/png;base64,${btoa(logoBinary)}`;
+  const logoBase64 = logoToBase64(logoBuffer);
 
-  const response = new ImageResponse(
-    (
+  // Branch: brand-only image if no live price, full image if we have one
+  let imageContent: React.JSX.Element;
+
+  if (nominalPrice === null) {
+    // Brand-only fallback — no dollar amounts
+    imageContent = (
       <div
         style={{
           display: "flex",
@@ -92,15 +91,76 @@ export const onRequest: PagesFunction<Env> = async (context) => {
           padding: "40px",
         }}
       >
-        {/* Logo */}
+        <img
+          src={logoBase64}
+          width={300}
+          height={168}
+          style={{ marginBottom: "32px" }}
+        />
+        <div
+          style={{
+            display: "flex",
+            fontFamily: "Inter",
+            fontSize: "36px",
+            fontWeight: 700,
+            color: "#e4e4e7",
+          }}
+        >
+          What is your Bitcoin actually worth?
+        </div>
+        <div
+          style={{
+            display: "flex",
+            fontFamily: "Inter",
+            fontSize: "24px",
+            color: "#a1a1aa",
+            marginTop: "16px",
+          }}
+        >
+          Inflation-adjusted BTC price — CPI, M2, Gold, DXY
+        </div>
+        <div
+          style={{
+            display: "flex",
+            fontFamily: "Inter",
+            fontSize: "22px",
+            marginTop: "40px",
+          }}
+        >
+          <span style={{ color: "#818cf8" }}>bitflation.io</span>
+          <span style={{ color: "#71717a", marginLeft: "12px" }}>
+            {" · Bitcoin in real $"}
+          </span>
+        </div>
+      </div>
+    );
+  } else {
+    // Full image with live price data
+    const bfiGrowth = 0.5 * (CPI_CURRENT / CPI_ANCHOR_2015) + 0.5 * (M2_CURRENT / M2_ANCHOR_2015);
+    const adjustedPrice = Math.round(nominalPrice / bfiGrowth);
+    const lossPercent = (
+      ((nominalPrice - adjustedPrice) / nominalPrice) * 100
+    ).toFixed(1);
+
+    imageContent = (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          width: "1200px",
+          height: "630px",
+          backgroundColor: "#0a0a0f",
+          padding: "40px",
+        }}
+      >
         <img
           src={logoBase64}
           width={250}
           height={140}
           style={{ marginBottom: "24px" }}
         />
-
-        {/* Adjusted price */}
         <div
           style={{
             display: "flex",
@@ -115,8 +175,6 @@ export const onRequest: PagesFunction<Env> = async (context) => {
           {"₿ "}
           {formatUsd(adjustedPrice)}
         </div>
-
-        {/* Subtitle */}
         <div
           style={{
             display: "flex",
@@ -128,8 +186,6 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         >
           in 2015 dollars (Bitflation Index)
         </div>
-
-        {/* Nominal price */}
         <div
           style={{
             display: "flex",
@@ -141,8 +197,6 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         >
           Nominal: {formatUsd(nominalPrice)}
         </div>
-
-        {/* Loss percentage */}
         <div
           style={{
             display: "flex",
@@ -155,8 +209,6 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         >
           {lossPercent}% purchasing power loss
         </div>
-
-        {/* Footer */}
         <div
           style={{
             display: "flex",
@@ -171,17 +223,18 @@ export const onRequest: PagesFunction<Env> = async (context) => {
           </span>
         </div>
       </div>
-    ),
-    {
-      width: 1200,
-      height: 630,
-      fonts: [
-        { name: "JetBrains Mono", data: jetBrainsBold, weight: 700 },
-        { name: "Inter", data: interRegular, weight: 400 },
-        { name: "Inter", data: interBold, weight: 700 },
-      ],
-    }
-  );
+    );
+  }
+
+  const response = new ImageResponse(imageContent, {
+    width: 1200,
+    height: 630,
+    fonts: [
+      { name: "JetBrains Mono", data: jetBrainsBold, weight: 700 },
+      { name: "Inter", data: interRegular, weight: 400 },
+      { name: "Inter", data: interBold, weight: 700 },
+    ],
+  });
 
   // Clone response with cache headers
   const res = new Response(response.body, response);

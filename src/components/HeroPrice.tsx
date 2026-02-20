@@ -18,15 +18,32 @@ interface HeroPriceProps {
   viewMode?: ViewMode;
 }
 
+function Skeleton() {
+  return (
+    <div className={styles.hero}>
+      <div className={styles.adjustedRow}>
+        <span className={`${styles.bar} ${styles.barSymbol}`} />
+        <span className={`${styles.bar} ${styles.barPrice}`} />
+      </div>
+      <div className={styles.nominalRow}>
+        <span className={`${styles.bar} ${styles.barNominal}`} />
+      </div>
+      <div className={styles.diffRow}>
+        <span className={`${styles.bar} ${styles.barDiff}`} />
+      </div>
+    </div>
+  );
+}
+
 export function HeroPrice({ latestPoint, anchorYear, metric, secondaryMetrics, viewMode = 'compare' }: HeroPriceProps) {
   if (!latestPoint) {
-    return <div className={styles.noData}>Loading price data...</div>;
+    return <Skeleton />;
   }
 
   if (metric === 'GOLD') {
     const point = latestPoint as GoldPricePoint;
     return (
-      <div className={styles.hero}>
+      <div className={`${styles.hero} ${styles.fadeIn}`}>
         <div className={styles.adjustedRow}>
           <span className={styles.btcSymbol}>&#x20BF;</span>
           <span className={styles.adjustedPrice}>{formatGoldOz(point.goldOunces)}</span>
@@ -49,7 +66,7 @@ export function HeroPrice({ latestPoint, anchorYear, metric, secondaryMetrics, v
   const isEstimate = anchorYear >= currentYear;
 
   return (
-    <div className={styles.hero}>
+    <div className={`${styles.hero} ${styles.fadeIn}`}>
       <div className={styles.adjustedRow}>
         <span className={styles.btcSymbol}>&#x20BF;</span>
         <span className={styles.adjustedPrice}>{formatUSD(adjustedPrice)}</span>

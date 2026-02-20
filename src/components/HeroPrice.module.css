@@ -2,6 +2,48 @@
   padding: 32px 0 24px;
 }
 
+.fadeIn {
+  animation: fadeIn 200ms ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Skeleton bars */
+.bar {
+  display: inline-block;
+  background: #27272a;
+  border-radius: 4px;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+.barSymbol {
+  width: 1.25rem;
+  height: 2.5rem;
+}
+
+.barPrice {
+  width: clamp(180px, 40vw, 280px);
+  height: 2.5rem;
+}
+
+.barNominal {
+  width: clamp(120px, 25vw, 180px);
+  height: 1rem;
+}
+
+.barDiff {
+  width: clamp(160px, 30vw, 220px);
+  height: 1rem;
+}
+
 .adjustedRow {
   display: flex;
   align-items: baseline;
@@ -76,10 +118,4 @@
 .secondaryItem {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-}
-
-.noData {
-  color: var(--text-muted);
-  font-style: italic;
-  padding: 32px 0;
 }
