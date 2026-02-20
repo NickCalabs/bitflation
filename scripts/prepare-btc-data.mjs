@@ -21,7 +21,7 @@ async function main() {
   console.log('Fetching BTC daily price data from CryptoCompare...');
 
   const START_DATE = '2013-04-28';
-  const END_DATE = '2025-01-31';
+  const END_DATE = new Date().toISOString().slice(0, 10);
   const startTs = new Date(START_DATE).getTime() / 1000;
   const endTs = new Date(END_DATE).getTime() / 1000;
 
