@@ -11,18 +11,59 @@ interface Env {
   ASSETS: Fetcher;
 }
 
-async function fetchBtcPrice(): Promise<number | null> {
+interface PriceResult {
+  price: number;
+  source: string;
+  errors: string[];
+}
+
+async function fetchBtcPrice(): Promise<PriceResult | null> {
+  const errors: string[] = [];
+
+  // Source 1: CoinGecko
   try {
     const res = await fetch(
       "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd",
-      { headers: { Accept: "application/json" } }
+      {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "Bitflation/1.0",
+        },
+      }
     );
-    if (!res.ok) return null;
-    const data = (await res.json()) as { bitcoin?: { usd?: number } };
-    return data.bitcoin?.usd ?? null;
-  } catch {
-    return null;
+    if (!res.ok) {
+      errors.push(`coingecko:${res.status} ${res.statusText}`);
+    } else {
+      const data = (await res.json()) as { bitcoin?: { usd?: number } };
+      const price = data.bitcoin?.usd;
+      if (price) return { price, source: "coingecko", errors };
+      errors.push("coingecko:missing bitcoin.usd in response");
+    }
+  } catch (e) {
+    errors.push(`coingecko:${e instanceof Error ? e.message : String(e)}`);
   }
+
+  // Source 2: Blockchain.com ticker
+  try {
+    const res = await fetch("https://blockchain.info/ticker", {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "Bitflation/1.0",
+      },
+    });
+    if (!res.ok) {
+      errors.push(`blockchain:${res.status} ${res.statusText}`);
+    } else {
+      const data = (await res.json()) as { USD?: { last?: number } };
+      const price = data.USD?.last;
+      if (price) return { price, source: "blockchain", errors };
+      errors.push("blockchain:missing USD.last in response");
+    }
+  } catch (e) {
+    errors.push(`blockchain:${e instanceof Error ? e.message : String(e)}`);
+  }
+
+  return { price: 0, source: "none", errors };
 }
 
 async function loadAsset(
@@ -59,24 +100,26 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   const cached = await cache.match(cacheKey);
   if (cached) return cached;
 
-  // Fetch live BTC price (null if unavailable)
-  const nominalPrice = await fetchBtcPrice();
-
-  // Load fonts + logo in parallel
-  const [jetBrainsBold, interRegular, interBold, logoBuffer] =
+  // Fetch live BTC price + load assets in parallel
+  const [priceResult, jetBrainsBold, interRegular, interBold, logoBuffer] =
     await Promise.all([
+      fetchBtcPrice(),
       loadAsset(context.env, "/fonts/JetBrainsMono-Bold.ttf"),
       loadAsset(context.env, "/fonts/Inter-Regular.ttf"),
       loadAsset(context.env, "/fonts/Inter-Bold.ttf"),
       loadAsset(context.env, "/og/bitflation-logo.png"),
     ]);
 
+  const nominalPrice = priceResult?.price || 0;
+  const priceSource = priceResult?.source ?? "none";
+  const debugErrors = priceResult?.errors ?? [];
+
   const logoBase64 = logoToBase64(logoBuffer);
 
   // Branch: brand-only image if no live price, full image if we have one
   let imageContent: React.JSX.Element;
 
-  if (nominalPrice === null) {
+  if (!nominalPrice) {
     // Brand-only fallback — no dollar amounts
     imageContent = (
       <div
@@ -236,13 +279,17 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     ],
   });
 
-  // Clone response with cache headers
+  // Clone response with cache + debug headers
   const res = new Response(response.body, response);
   res.headers.set(
     "Cache-Control",
     "public, s-maxage=3600, max-age=3600, stale-while-revalidate=600"
   );
   res.headers.set("Content-Type", "image/png");
+  res.headers.set("X-Price-Source", priceSource);
+  if (debugErrors.length > 0) {
+    res.headers.set("X-Debug-Error", debugErrors.join("; "));
+  }
 
   // Store in cache
   context.waitUntil(cache.put(cacheKey, res.clone()));
