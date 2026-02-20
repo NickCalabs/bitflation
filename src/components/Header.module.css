@@ -7,8 +7,14 @@
 }
 
 .logoImg {
-  height: 40px;
+  height: 64px;
   width: auto;
+  animation: float 4s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
 }
 
 .tagline {

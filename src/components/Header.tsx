@@ -4,7 +4,7 @@ export function Header() {
   return (
     <header className={styles.header}>
       <img
-        src="/bitflation-logo.png"
+        src="/bitflation-logo-cartoon.png"
         alt="Bitflation"
         className={styles.logoImg}
       />
