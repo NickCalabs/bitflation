@@ -51,13 +51,14 @@ export default function App() {
   const [liveM2, setLiveM2] = useState<DeflatorPoint[]>([]);
   const [liveSp500, setLiveSp500] = useState<DeflatorPoint[]>([]);
   const [liveDataStatus, setLiveDataStatus] = useState<LiveDataStatus>('none');
+  const [dataReady, setDataReady] = useState(false);
 
   // Derived state
   const primaryMetric = selectedMetrics[0];
   const isGoldMode = selectedMetrics.length === 1 && selectedMetrics[0] === 'GOLD';
   const deflatorMetrics = selectedMetrics.filter((m): m is DeflatorMetric => m !== 'GOLD');
 
-  // 1. Fetch all live data on mount
+  // 1. Fetch all live data on mount — dataReady gates all rendering
   useEffect(() => {
     Promise.all([
       fetchLivePrices(),
@@ -76,6 +77,10 @@ export default function App() {
       setLiveDataStatus(
         successes === 3 ? 'all' : successes > 0 ? 'partial' : 'none'
       );
+      setDataReady(true);
+    }, () => {
+      // All fetches failed — render with static data only
+      setDataReady(true);
     });
   }, []);
 
@@ -307,7 +312,7 @@ export default function App() {
   return (
     <>
       <Header />
-      <HeroPrice latestPoint={latestPoint} anchorYear={anchorYear} metric={primaryMetric} secondaryMetrics={secondaryHeroMetrics} viewMode={viewMode} />
+      <HeroPrice latestPoint={dataReady ? latestPoint : null} anchorYear={anchorYear} metric={primaryMetric} secondaryMetrics={secondaryHeroMetrics} viewMode={viewMode} />
       <Controls
         anchorYear={anchorYear}
         onAnchorYearChange={setAnchorYear}
@@ -326,19 +331,23 @@ export default function App() {
         viewMode={viewMode}
         onViewModeChange={setViewMode}
       />
-      <PriceChart
-        data={filteredData}
-        selectedMetrics={selectedMetrics}
-        logScale={logScale}
-        showEvents={showEvents}
-        showGap={showGap}
-        multiMetricData={filteredMultiMetric}
-        comparisonData={comparisonData}
-        compareAssets={compareAssets}
-        viewMode={viewMode}
-      />
-      <Calculator prices={stitchedPrices} cpiMap={dailyCpi} m2Map={dailyM2} goldMap={dailyGold} />
-      <Explainer stats={shockStats} />
+      {dataReady && (
+        <>
+          <PriceChart
+            data={filteredData}
+            selectedMetrics={selectedMetrics}
+            logScale={logScale}
+            showEvents={showEvents}
+            showGap={showGap}
+            multiMetricData={filteredMultiMetric}
+            comparisonData={comparisonData}
+            compareAssets={compareAssets}
+            viewMode={viewMode}
+          />
+          <Calculator prices={stitchedPrices} cpiMap={dailyCpi} m2Map={dailyM2} goldMap={dailyGold} />
+          <Explainer stats={shockStats} />
+        </>
+      )}
       <Footer liveDataStatus={liveDataStatus} />
     </>
   );
