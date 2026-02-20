@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import type { Timeframe, InflationMetric, DeflatorMetric, LiveDataStatus, PricePoint, DeflatorPoint, AdjustedPricePoint, GoldPricePoint, ComparisonAsset, ComparisonPoint, MultiMetricPoint, ViewMode } from './lib/types';
 import { interpolateMonthlyToDaily } from './lib/interpolateCpi';
 import { adjustPrices } from './lib/adjustPrices';
+import { computeBitflationIndex } from './lib/computeBitflationIndex';
 import { convertToGold } from './lib/convertToGold';
 import { fetchLivePrices } from './lib/fetchLivePrices';
 import { fetchFred } from './lib/fetchFred';
@@ -39,7 +40,7 @@ const initial = parseUrlState();
 export default function App() {
   const [anchorYear, setAnchorYear] = useState(initial.anchor ?? 2015);
   const [timeframe, setTimeframe] = useState<Timeframe>(initial.tf ?? 'ALL');
-  const [selectedMetrics, setSelectedMetrics] = useState<InflationMetric[]>(initial.metrics ?? ['CPI']);
+  const [selectedMetrics, setSelectedMetrics] = useState<InflationMetric[]>(initial.metrics ?? ['BFI']);
   const [logScale, setLogScale] = useState(initial.log ?? false);
   const [showEvents, setShowEvents] = useState(initial.events ?? false);
   const [showGap, setShowGap] = useState(initial.gap ?? true);
@@ -120,6 +121,12 @@ export default function App() {
     return map;
   }, [mergedDxy]);
 
+  // 4a. Compute BFI deflator (depends on anchor year)
+  const dailyBfi = useMemo(
+    () => computeBitflationIndex(dailyCpi, dailyM2, anchorYear),
+    [dailyCpi, dailyM2, anchorYear]
+  );
+
   // 4b. Comparison asset data
   const stitchedSp500 = useMemo(() => {
     const liveSp500AsPrices: PricePoint[] = liveSp500.map((d) => ({
@@ -145,18 +152,22 @@ export default function App() {
   }, [dailyGold]);
 
   // 5. Compute adjusted/converted data based on primary metric (for HeroPrice)
+  const DEFLATOR_LOOKUP = useMemo((): Record<DeflatorMetric, Map<string, number>> => ({
+    BFI: dailyBfi, CPI: dailyCpi, M2: dailyM2, DXY: dailyDxy,
+  }), [dailyBfi, dailyCpi, dailyM2, dailyDxy]);
+
   const processedData = useMemo((): AdjustedPricePoint[] | GoldPricePoint[] => {
     if (primaryMetric === 'GOLD') {
       return convertToGold(stitchedPrices, dailyGold);
     }
-    const deflator = primaryMetric === 'CPI' ? dailyCpi : primaryMetric === 'M2' ? dailyM2 : dailyDxy;
+    const deflator = DEFLATOR_LOOKUP[primaryMetric as DeflatorMetric];
     return adjustPrices(stitchedPrices, deflator, anchorYear);
-  }, [stitchedPrices, primaryMetric, anchorYear, dailyCpi, dailyM2, dailyGold, dailyDxy]);
+  }, [stitchedPrices, primaryMetric, anchorYear, DEFLATOR_LOOKUP, dailyGold]);
 
   // 5b. Multi-metric data (for PriceChart when multiple deflators selected)
   const DEFLATOR_MAP_MEMO = useMemo((): Record<DeflatorMetric, Map<string, number>> => ({
-    CPI: dailyCpi, M2: dailyM2, DXY: dailyDxy,
-  }), [dailyCpi, dailyM2, dailyDxy]);
+    BFI: dailyBfi, CPI: dailyCpi, M2: dailyM2, DXY: dailyDxy,
+  }), [dailyBfi, dailyCpi, dailyM2, dailyDxy]);
 
   const multiMetricData = useMemo((): MultiMetricPoint[] | null => {
     if (isGoldMode || deflatorMetrics.length === 0) return null;
@@ -243,10 +254,13 @@ export default function App() {
         ? btcNominalGain * (cpiRef / cpiNow)
         : null;
 
-    // M2 increase
+    // BFI purchasing power loss (blended CPI + M2)
     const m2Ref = dailyM2.get(ref);
     const m2Now = today ? dailyM2.get(today) : undefined;
-    const m2Increase = m2Ref && m2Now ? (m2Now - m2Ref) / m2Ref : null;
+    const bfiGrowth2020 = cpiRef && cpiNow && m2Ref && m2Now
+      ? 0.5 * (cpiNow / cpiRef) + 0.5 * (m2Now / m2Ref)
+      : null;
+    const bfiLoss = bfiGrowth2020 !== null ? 1 - (1 / bfiGrowth2020) : null;
 
     // BTC in gold terms change
     const goldRef = dailyGold.get(ref);
@@ -256,14 +270,14 @@ export default function App() {
         ? (btcNow.price / goldNow) / (btcRef.price / goldRef)
         : null;
 
-    return { dollarLoss, btcNominalGain, btcRealGain, m2Increase, btcGoldChange };
+    return { dollarLoss, btcNominalGain, btcRealGain, bfiLoss, btcGoldChange };
   }, [stitchedPrices, dailyCpi, dailyM2, dailyGold]);
 
   // 9. Comparison data pipeline (normalized to index 100)
   const comparisonData = useMemo((): ComparisonPoint[] | null => {
     if (compareAssets.length === 0 || isGoldMode) return null;
 
-    const deflator = primaryMetric === 'CPI' ? dailyCpi : primaryMetric === 'M2' ? dailyM2 : dailyDxy;
+    const deflator = DEFLATOR_LOOKUP[primaryMetric as DeflatorMetric];
 
     // BTC adjusted + filtered
     const btcAdjusted = adjustPrices(stitchedPrices, deflator, anchorYear);
@@ -288,7 +302,7 @@ export default function App() {
     }
 
     return normalizeToIndex(btcFiltered, assetSeries);
-  }, [compareAssets, primaryMetric, isGoldMode, anchorYear, timeframe, stitchedPrices, stitchedSp500, goldAsPrices, dailyHousing, dailyCpi, dailyM2, dailyDxy]);
+  }, [compareAssets, primaryMetric, isGoldMode, anchorYear, timeframe, stitchedPrices, stitchedSp500, goldAsPrices, dailyHousing, DEFLATOR_LOOKUP]);
 
   return (
     <>

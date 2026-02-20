@@ -30,6 +30,7 @@ const COMPARE_OPTIONS: { value: ComparisonAsset; label: string; color: string }[
 ];
 
 const DEFLATOR_METRICS: { value: InflationMetric; label: string }[] = [
+  { value: 'BFI', label: 'Bitflation' },
   { value: 'CPI', label: 'CPI' },
   { value: 'M2', label: 'M2' },
   { value: 'DXY', label: 'DXY' },

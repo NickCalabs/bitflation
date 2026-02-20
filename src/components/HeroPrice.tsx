@@ -2,6 +2,14 @@ import type { AdjustedPricePoint, GoldPricePoint, InflationMetric, ViewMode } fr
 import { formatUSD, formatPercent, formatGoldOz } from '../lib/formatters';
 import styles from './HeroPrice.module.css';
 
+const METRIC_LABELS: Record<InflationMetric, string> = {
+  BFI: 'Bitflation Index',
+  CPI: 'CPI',
+  M2: 'M2',
+  DXY: 'DXY',
+  GOLD: 'Gold',
+};
+
 interface HeroPriceProps {
   latestPoint: AdjustedPricePoint | GoldPricePoint | null;
   anchorYear: number;
@@ -46,7 +54,7 @@ export function HeroPrice({ latestPoint, anchorYear, metric, secondaryMetrics, v
         <span className={styles.btcSymbol}>&#x20BF;</span>
         <span className={styles.adjustedPrice}>{formatUSD(adjustedPrice)}</span>
         <span className={styles.anchorLabel}>
-          in {anchorYear} USD ({metric}){isEstimate && <span className={styles.estimate}> (est.)</span>}
+          in {anchorYear} USD ({METRIC_LABELS[metric]}){isEstimate && <span className={styles.estimate}> (est.)</span>}
         </span>
       </div>
       <div className={`${styles.nominalRow} ${viewMode === 'realPrice' ? styles.muted : ''}`}>

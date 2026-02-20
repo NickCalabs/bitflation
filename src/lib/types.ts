@@ -16,13 +16,14 @@ export interface AdjustedPricePoint {
 
 export type Timeframe = '1Y' | '5Y' | 'ALL';
 
-export type InflationMetric = 'CPI' | 'M2' | 'GOLD' | 'DXY';
+export type InflationMetric = 'BFI' | 'CPI' | 'M2' | 'GOLD' | 'DXY';
 
-export type DeflatorMetric = 'CPI' | 'M2' | 'DXY';
+export type DeflatorMetric = 'BFI' | 'CPI' | 'M2' | 'DXY';
 
 export interface MultiMetricPoint {
   date: string;
   nominalPrice: number;
+  bfiAdjusted?: number;
   cpiAdjusted?: number;
   m2Adjusted?: number;
   dxyAdjusted?: number;

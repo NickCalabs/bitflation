@@ -1,11 +1,11 @@
 import type { InflationMetric, Timeframe, ComparisonAsset, ViewMode } from './types';
 
-const VALID_METRICS: InflationMetric[] = ['CPI', 'M2', 'GOLD', 'DXY'];
+const VALID_METRICS: InflationMetric[] = ['BFI', 'CPI', 'M2', 'GOLD', 'DXY'];
 const VALID_TIMEFRAMES: Timeframe[] = ['1Y', '5Y', 'ALL'];
 const VALID_COMPARE: ComparisonAsset[] = ['sp500', 'gold', 'housing'];
 
 const DEFAULTS = {
-  metrics: ['CPI'] as InflationMetric[],
+  metrics: ['BFI'] as InflationMetric[],
   anchor: 2015,
   tf: 'ALL' as Timeframe,
   log: false,

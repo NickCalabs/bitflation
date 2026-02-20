@@ -20,7 +20,15 @@ export function Explainer({ stats }: ExplainerProps) {
 
       <ShockStats stats={stats} />
 
-      <h3 className={styles.subhead}>Four lenses on the same price</h3>
+      <h3 className={styles.subhead}>The Bitflation Index</h3>
+      <p className={styles.prose}>
+        The Bitflation Index blends official CPI inflation with M2 money supply growth
+        to estimate real purchasing power loss. CPI understates — it's a curated basket
+        that excludes asset prices. M2 overstates — not all new dollars reach consumers.
+        The Bitflation Index splits the difference.
+      </p>
+
+      <h3 className={styles.subhead}>Dig deeper: individual metrics</h3>
       <FourLenses />
 
       <h3 className={styles.subhead}>How to read this chart</h3>

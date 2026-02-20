@@ -9,12 +9,14 @@ const COMPARE_CONFIG: { key: ComparisonAsset; label: string; color: string }[] =
 ];
 
 const METRIC_COLORS: Record<DeflatorMetric, string> = {
+  BFI: '#e4e4e7',
   CPI: '#4ade80',
   M2: '#22d3ee',
   DXY: '#fb923c',
 };
 
 const METRIC_KEYS: Record<DeflatorMetric, string> = {
+  BFI: 'bfiAdjusted',
   CPI: 'cpiAdjusted',
   M2: 'm2Adjusted',
   DXY: 'dxyAdjusted',
@@ -130,7 +132,7 @@ export function CustomTooltip({ selectedMetrics, compareAssets, active, payload 
         <span className={styles.value}>{formatUSD(nominalPrice)}</span>
       </div>
       <div className={styles.row}>
-        <span className={`${styles.dot} ${styles.adjusted}`} />
+        <span className={styles.dot} style={{ background: METRIC_COLORS[deflatorMetrics[0]] }} />
         <span className={styles.label}>Adjusted</span>
         <span className={styles.value}>{formatUSD(adjustedPrice)}</span>
       </div>

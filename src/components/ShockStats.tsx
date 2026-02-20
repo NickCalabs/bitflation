@@ -4,7 +4,7 @@ export interface ShockStatsData {
   dollarLoss: number | null;       // e.g. 0.22 = 22% purchasing power lost
   btcNominalGain: number | null;   // e.g. 14.5 = 1450% gain
   btcRealGain: number | null;      // CPI-adjusted gain multiplier
-  m2Increase: number | null;       // e.g. 0.42 = 42% increase
+  bfiLoss: number | null;          // e.g. 0.35 = 35% blended purchasing power lost
   btcGoldChange: number | null;    // e.g. 3.2 = 3.2x in gold terms
 }
 
@@ -38,8 +38,8 @@ export function ShockStats({ stats }: ShockStatsProps) {
         <span className={styles.desc}>BTC real return since 2020 (CPI-adjusted)</span>
       </div>
       <div className={styles.card}>
-        <span className={styles.number}>{formatPct(stats.m2Increase)}</span>
-        <span className={styles.desc}>M2 money supply increase since 2020</span>
+        <span className={styles.number}>{formatPct(stats.bfiLoss)}</span>
+        <span className={styles.desc}>Blended purchasing power loss since 2020 (Bitflation Index)</span>
       </div>
     </div>
   );

@@ -32,12 +32,14 @@ const COMPARISON_LABELS: Record<ComparisonAsset, string> = {
 };
 
 const METRIC_COLORS: Record<DeflatorMetric, string> = {
+  BFI: '#e4e4e7',
   CPI: '#4ade80',
   M2: '#22d3ee',
   DXY: '#fb923c',
 };
 
 const METRIC_KEYS: Record<DeflatorMetric, string> = {
+  BFI: 'bfiAdjusted',
   CPI: 'cpiAdjusted',
   M2: 'm2Adjusted',
   DXY: 'dxyAdjusted',
@@ -538,7 +540,7 @@ export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGa
               <Line
                 type="monotone"
                 dataKey="adjustedPrice"
-                stroke="#4ade80"
+                stroke={METRIC_COLORS[deflatorMetrics[0]] ?? '#4ade80'}
                 strokeWidth={isRealPrice ? 2.5 : 1.5}
                 dot={false}
                 isAnimationActive={true}
@@ -564,8 +566,8 @@ export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGa
           ))
         ) : (
           <div className={styles.legendItem}>
-            <span className={`${styles.legendDot} ${styles.adjusted}`} />
-            {primaryMetric}-adjusted
+            <span className={styles.legendDot} style={{ background: METRIC_COLORS[deflatorMetrics[0]] ?? '#4ade80' }} />
+            {primaryMetric === 'BFI' ? 'Bitflation Index' : `${primaryMetric}-adjusted`}
           </div>
         )}
       </div>

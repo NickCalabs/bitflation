@@ -1,9 +1,11 @@
 import { ImageResponse } from "@cloudflare/pages-plugin-vercel-og/api";
 import React from "react";
 
-// Hardcoded CPI constants (update quarterly)
+// Hardcoded constants for BFI computation (update quarterly)
 const CPI_ANCHOR_2015 = 237.017;
 const CPI_CURRENT = 325.252; // Jan 2026
+const M2_ANCHOR_2015 = 12055.6; // billions, 2015 avg
+const M2_CURRENT = 22411; // billions, late 2025
 const FALLBACK_BTC_PRICE = 97000;
 
 interface Env {
@@ -51,9 +53,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
   // Fetch live BTC price
   const nominalPrice = await fetchBtcPrice();
-  const adjustedPrice = Math.round(
-    nominalPrice * (CPI_ANCHOR_2015 / CPI_CURRENT)
-  );
+  // BFI = 50% CPI growth + 50% M2 growth, normalized to anchor year
+  const bfiGrowth = 0.5 * (CPI_CURRENT / CPI_ANCHOR_2015) + 0.5 * (M2_CURRENT / M2_ANCHOR_2015);
+  const adjustedPrice = Math.round(nominalPrice / bfiGrowth);
   const lossPercent = (
     ((nominalPrice - adjustedPrice) / nominalPrice) *
     100
@@ -106,7 +108,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
             fontFamily: "JetBrains Mono",
             fontSize: "96px",
             fontWeight: 700,
-            color: "#4ade80",
+            color: "#e4e4e7",
             lineHeight: 1,
           }}
         >
@@ -124,7 +126,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
             marginTop: "12px",
           }}
         >
-          in 2015 dollars (CPI-adjusted)
+          in 2015 dollars (Bitflation Index)
         </div>
 
         {/* Nominal price */}
