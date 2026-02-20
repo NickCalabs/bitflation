@@ -1,4 +1,4 @@
-import type { AdjustedPricePoint, GoldPricePoint, InflationMetric } from '../lib/types';
+import type { AdjustedPricePoint, GoldPricePoint, InflationMetric, ViewMode } from '../lib/types';
 import { formatUSD, formatPercent, formatGoldOz } from '../lib/formatters';
 import styles from './HeroPrice.module.css';
 
@@ -7,9 +7,10 @@ interface HeroPriceProps {
   anchorYear: number;
   metric: InflationMetric;
   secondaryMetrics?: { label: string; adjustedPrice: number; diff: number }[];
+  viewMode?: ViewMode;
 }
 
-export function HeroPrice({ latestPoint, anchorYear, metric, secondaryMetrics }: HeroPriceProps) {
+export function HeroPrice({ latestPoint, anchorYear, metric, secondaryMetrics, viewMode = 'compare' }: HeroPriceProps) {
   if (!latestPoint) {
     return <div className={styles.noData}>Loading price data...</div>;
   }
@@ -26,7 +27,7 @@ export function HeroPrice({ latestPoint, anchorYear, metric, secondaryMetrics }:
         <div className={styles.nominalRow}>
           Gold price: <span className={styles.nominalPrice}>{formatUSD(point.goldPriceUsd)}/oz</span>
         </div>
-        <div className={styles.nominalRow}>
+        <div className={`${styles.nominalRow} ${viewMode === 'realPrice' ? styles.muted : ''}`}>
           Nominal: <span className={styles.nominalPrice}>{formatUSD(point.nominalPrice)}</span>
         </div>
       </div>
@@ -48,7 +49,7 @@ export function HeroPrice({ latestPoint, anchorYear, metric, secondaryMetrics }:
           in {anchorYear} USD ({metric}){isEstimate && <span className={styles.estimate}> (est.)</span>}
         </span>
       </div>
-      <div className={styles.nominalRow}>
+      <div className={`${styles.nominalRow} ${viewMode === 'realPrice' ? styles.muted : ''}`}>
         Nominal: <span className={styles.nominalPrice}>{formatUSD(nominalPrice)}</span>
       </div>
       <div className={`${styles.diffRow} ${diff >= 0 ? styles.positive : styles.negative}`}>

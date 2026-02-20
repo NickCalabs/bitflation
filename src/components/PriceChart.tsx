@@ -11,7 +11,7 @@ import {
   ReferenceArea,
   ResponsiveContainer,
 } from 'recharts';
-import type { AdjustedPricePoint, GoldPricePoint, InflationMetric, DeflatorMetric, ComparisonAsset, ComparisonPoint, MultiMetricPoint } from '../lib/types';
+import type { AdjustedPricePoint, GoldPricePoint, InflationMetric, DeflatorMetric, ComparisonAsset, ComparisonPoint, MultiMetricPoint, ViewMode } from '../lib/types';
 import { formatUSDCompact, formatChartDate, formatGoldOz, formatIndexed } from '../lib/formatters';
 import { EVENTS, filterEventsToRange, type ChartEvent } from '../lib/events';
 import { CustomTooltip } from './CustomTooltip';
@@ -52,6 +52,7 @@ interface PriceChartProps {
   multiMetricData?: MultiMetricPoint[] | null;
   comparisonData?: ComparisonPoint[] | null;
   compareAssets?: ComparisonAsset[];
+  viewMode?: ViewMode;
 }
 
 function sampleTicks(data: { date: string }[]): string[] {
@@ -92,8 +93,9 @@ function computeEventLayouts(events: ChartEvent[]): EventLayout[] {
   return layouts;
 }
 
-export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGap, multiMetricData, comparisonData, compareAssets = [] }: PriceChartProps) {
+export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGap, multiMetricData, comparisonData, compareAssets = [], viewMode = 'compare' }: PriceChartProps) {
   const isComparison = comparisonData != null && comparisonData.length > 0 && compareAssets.length > 0;
+  const isRealPrice = viewMode === 'realPrice' && !isComparison;
   const primaryMetric = selectedMetrics[0];
   const isGold = selectedMetrics.length === 1 && selectedMetrics[0] === 'GOLD';
   const deflatorMetrics = selectedMetrics.filter((m): m is DeflatorMetric => m !== 'GOLD');
@@ -402,7 +404,8 @@ export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGa
                 type="monotone"
                 dataKey="nominalPrice"
                 stroke="#818cf8"
-                strokeWidth={1.5}
+                strokeWidth={isRealPrice ? 1 : 1.5}
+                strokeOpacity={isRealPrice ? 0.2 : 1}
                 dot={false}
                 isAnimationActive={true}
                 animationDuration={600}
@@ -414,7 +417,7 @@ export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGa
                 type="monotone"
                 dataKey="goldOunces"
                 stroke="#facc15"
-                strokeWidth={1.5}
+                strokeWidth={isRealPrice ? 2.5 : 1.5}
                 dot={false}
                 isAnimationActive={true}
                 animationDuration={600}
@@ -510,7 +513,8 @@ export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGa
               type="monotone"
               dataKey="nominalPrice"
               stroke="#818cf8"
-              strokeWidth={1.5}
+              strokeWidth={isRealPrice ? 1 : 1.5}
+              strokeOpacity={isRealPrice ? 0.2 : 1}
               dot={false}
               isAnimationActive={!useMultiMetric}
               animationDuration={600}
@@ -524,7 +528,7 @@ export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGa
                   type="monotone"
                   dataKey={METRIC_KEYS[m]}
                   stroke={METRIC_COLORS[m]}
-                  strokeWidth={1.5}
+                  strokeWidth={isRealPrice ? 2.5 : 1.5}
                   dot={false}
                   isAnimationActive={false}
                   name={`${m}-adjusted`}
@@ -535,7 +539,7 @@ export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGa
                 type="monotone"
                 dataKey="adjustedPrice"
                 stroke="#4ade80"
-                strokeWidth={1.5}
+                strokeWidth={isRealPrice ? 2.5 : 1.5}
                 dot={false}
                 isAnimationActive={true}
                 animationDuration={600}

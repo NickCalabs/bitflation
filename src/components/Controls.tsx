@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Timeframe, InflationMetric, ComparisonAsset } from '../lib/types';
+import type { Timeframe, InflationMetric, ComparisonAsset, ViewMode } from '../lib/types';
 import styles from './Controls.module.css';
 
 interface ControlsProps {
@@ -17,6 +17,8 @@ interface ControlsProps {
   onShowGapChange: (v: boolean) => void;
   compareAssets: ComparisonAsset[];
   onCompareAssetsChange: (assets: ComparisonAsset[]) => void;
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
 }
 
 const TIMEFRAMES: Timeframe[] = ['1Y', '5Y', 'ALL'];
@@ -48,6 +50,8 @@ export function Controls({
   onShowGapChange,
   compareAssets,
   onCompareAssetsChange,
+  viewMode,
+  onViewModeChange,
 }: ControlsProps) {
   const [copied, setCopied] = useState(false);
   const currentYear = new Date().getFullYear();
@@ -140,6 +144,24 @@ export function Controls({
             onClick={() => onLogScaleChange(true)}
           >
             Log
+          </button>
+        </div>
+      </div>
+
+      <div className={`${styles.group} ${compareAssets.length > 0 ? styles.compareDisabled : ''}`}>
+        <span className={styles.label}>View</span>
+        <div className={styles.segmented}>
+          <button
+            className={`${styles.segBtn} ${viewMode === 'compare' ? styles.active : ''}`}
+            onClick={() => onViewModeChange('compare')}
+          >
+            Compare
+          </button>
+          <button
+            className={`${styles.segBtn} ${viewMode === 'realPrice' ? styles.active : ''}`}
+            onClick={() => onViewModeChange('realPrice')}
+          >
+            Real Price
           </button>
         </div>
       </div>

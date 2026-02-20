@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import type { Timeframe, InflationMetric, DeflatorMetric, LiveDataStatus, PricePoint, DeflatorPoint, AdjustedPricePoint, GoldPricePoint, ComparisonAsset, ComparisonPoint, MultiMetricPoint } from './lib/types';
+import type { Timeframe, InflationMetric, DeflatorMetric, LiveDataStatus, PricePoint, DeflatorPoint, AdjustedPricePoint, GoldPricePoint, ComparisonAsset, ComparisonPoint, MultiMetricPoint, ViewMode } from './lib/types';
 import { interpolateMonthlyToDaily } from './lib/interpolateCpi';
 import { adjustPrices } from './lib/adjustPrices';
 import { convertToGold } from './lib/convertToGold';
@@ -44,6 +44,7 @@ export default function App() {
   const [showEvents, setShowEvents] = useState(initial.events ?? false);
   const [showGap, setShowGap] = useState(initial.gap ?? true);
   const [compareAssets, setCompareAssets] = useState<ComparisonAsset[]>(initial.compare ?? []);
+  const [viewMode, setViewMode] = useState<ViewMode>(initial.view ?? 'compare');
   const [livePrices, setLivePrices] = useState<PricePoint[]>([]);
   const [liveDxy, setLiveDxy] = useState<DeflatorPoint[]>([]);
   const [liveM2, setLiveM2] = useState<DeflatorPoint[]>([]);
@@ -79,8 +80,8 @@ export default function App() {
 
   // 2. Sync state → URL
   useEffect(() => {
-    writeUrlState({ metrics: selectedMetrics, anchor: anchorYear, tf: timeframe, log: logScale, events: showEvents, compare: compareAssets, gap: showGap });
-  }, [selectedMetrics, anchorYear, timeframe, logScale, showEvents, compareAssets, showGap]);
+    writeUrlState({ metrics: selectedMetrics, anchor: anchorYear, tf: timeframe, log: logScale, events: showEvents, compare: compareAssets, gap: showGap, view: viewMode });
+  }, [selectedMetrics, anchorYear, timeframe, logScale, showEvents, compareAssets, showGap, viewMode]);
 
   // 3. Stitch static + live
   const stitchedPrices = useMemo(
@@ -292,7 +293,7 @@ export default function App() {
   return (
     <>
       <Header />
-      <HeroPrice latestPoint={latestPoint} anchorYear={anchorYear} metric={primaryMetric} secondaryMetrics={secondaryHeroMetrics} />
+      <HeroPrice latestPoint={latestPoint} anchorYear={anchorYear} metric={primaryMetric} secondaryMetrics={secondaryHeroMetrics} viewMode={viewMode} />
       <Controls
         anchorYear={anchorYear}
         onAnchorYearChange={setAnchorYear}
@@ -308,6 +309,8 @@ export default function App() {
         onShowGapChange={setShowGap}
         compareAssets={compareAssets}
         onCompareAssetsChange={setCompareAssets}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
       />
       <PriceChart
         data={filteredData}
@@ -318,6 +321,7 @@ export default function App() {
         multiMetricData={filteredMultiMetric}
         comparisonData={comparisonData}
         compareAssets={compareAssets}
+        viewMode={viewMode}
       />
       <Calculator prices={stitchedPrices} cpiMap={dailyCpi} m2Map={dailyM2} goldMap={dailyGold} />
       <Explainer stats={shockStats} />
