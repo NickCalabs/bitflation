@@ -13,7 +13,7 @@ export async function fetchFred(
 
   try {
     const url =
-      `https://api.stlouisfed.org/fred/series/observations` +
+      `/api/fred/fred/series/observations` +
       `?series_id=${seriesId}` +
       `&api_key=${apiKey}` +
       `&file_type=json` +
