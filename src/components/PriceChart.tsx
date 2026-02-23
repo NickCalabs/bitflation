@@ -227,7 +227,7 @@ export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGa
     };
 
     return (
-      <div className={styles.chartWrapper}>
+      <div className={styles.chartWrapper} key="comparison">
         {resetButton}
         <div className={styles.chart}>
           <ResponsiveContainer width="100%" height="100%">
@@ -348,7 +348,7 @@ export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGa
 
   if (isGold) {
     return (
-      <div className={styles.chartWrapper}>
+      <div className={styles.chartWrapper} key="gold">
         {resetButton}
         <div className={styles.chart}>
           <ResponsiveContainer width="100%" height="100%">
@@ -447,7 +447,7 @@ export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGa
   const chartSource = useMultiMetric ? multiChartData : chartData;
 
   return (
-    <div className={styles.chartWrapper}>
+    <div className={styles.chartWrapper} key="deflator">
       {resetButton}
       <div className={styles.chart}>
         <ResponsiveContainer width="100%" height="100%">
