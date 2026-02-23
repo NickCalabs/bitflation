@@ -220,6 +220,7 @@ If both price sources fail, renders a brand-only image (logo + tagline, no dolla
 
 ## Git Workflow
 
+- Primary branch is `master`.
 - Commit after each feature is working, not all at once.
 - Use conventional commits (feat:, fix:, refactor:).
 - Never add Co-authored-by trailers.
