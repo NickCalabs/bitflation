@@ -29,18 +29,18 @@ export interface CurrencyConfig {
   events: ChartEvent[];
 }
 
-/** ATH events with raw BTC prices — formatted dynamically per currency */
+/** ATH events with per-currency BTC prices (approximate round values) */
 interface AthEvent {
   date: string;
-  btcPrice: number;
+  prices: Record<CurrencyCode, number>;
   color: string;
 }
 
 const ATH_EVENTS: AthEvent[] = [
-  { date: '2013-12-04', btcPrice: 1000,   color: '#4ade80' },
-  { date: '2017-12-17', btcPrice: 19500,  color: '#4ade80' },
-  { date: '2021-11-10', btcPrice: 69000,  color: '#4ade80' },
-  { date: '2024-03-14', btcPrice: 73000,  color: '#4ade80' },
+  { date: '2013-12-04', prices: { USD: 1000, EUR: 900, IDR: 12000000 },       color: '#4ade80' },
+  { date: '2017-12-17', prices: { USD: 19500, EUR: 16000, IDR: 264000000 },   color: '#4ade80' },
+  { date: '2021-11-10', prices: { USD: 69000, EUR: 57000, IDR: 938000000 },   color: '#4ade80' },
+  { date: '2024-03-14', prices: { USD: 73000, EUR: 66000, IDR: 1130000000 },  color: '#4ade80' },
 ];
 
 /** Universal events (shown for all currencies) */
@@ -53,7 +53,7 @@ const UNIVERSAL_EVENTS: ChartEvent[] = [
 ];
 
 /** Format ATH events using compact currency notation */
-function buildAthEvents(locale: string, currency: string): ChartEvent[] {
+function buildAthEvents(locale: string, currency: string, currencyCode: CurrencyCode): ChartEvent[] {
   const fmt = new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
@@ -62,15 +62,15 @@ function buildAthEvents(locale: string, currency: string): ChartEvent[] {
     maximumFractionDigits: 1,
   });
 
-  return ATH_EVENTS.map(({ date, btcPrice, color }) => ({
+  return ATH_EVENTS.map(({ date, prices, color }) => ({
     date,
-    label: `ATH ${fmt.format(btcPrice)}`,
+    label: `ATH ${fmt.format(prices[currencyCode])}`,
     color,
   }));
 }
 
-function buildEvents(locale: string, currency: string): ChartEvent[] {
-  const athEvents = buildAthEvents(locale, currency);
+function buildEvents(locale: string, currency: string, currencyCode: CurrencyCode): ChartEvent[] {
+  const athEvents = buildAthEvents(locale, currency, currencyCode);
   // Merge and sort by date
   return [...UNIVERSAL_EVENTS, ...athEvents].sort((a, b) => a.date.localeCompare(b.date));
 }
@@ -97,7 +97,7 @@ export const CURRENCIES: Record<CurrencyCode, CurrencyConfig> = {
     hasStaticSp500: true,
     hasStaticHousing: true,
     footerAttribution: 'BLS CPI-U · FRED M2 · FRED DXY · LBMA Gold · CryptoCompare BTC',
-    events: buildEvents('en-US', 'USD'),
+    events: buildEvents('en-US', 'USD', 'USD'),
   },
   EUR: {
     code: 'EUR',
@@ -120,7 +120,7 @@ export const CURRENCIES: Record<CurrencyCode, CurrencyConfig> = {
     hasStaticSp500: false,
     hasStaticHousing: false,
     footerAttribution: 'Eurostat HICP · FRED M3 · LBMA Gold (EUR) · CryptoCompare BTC',
-    events: buildEvents('de-DE', 'EUR'),
+    events: buildEvents('de-DE', 'EUR', 'EUR'),
   },
   IDR: {
     code: 'IDR',
@@ -143,7 +143,7 @@ export const CURRENCIES: Record<CurrencyCode, CurrencyConfig> = {
     hasStaticSp500: false,
     hasStaticHousing: false,
     footerAttribution: 'OECD CPI · FRED M2 · LBMA Gold (IDR) · CryptoCompare BTC',
-    events: buildEvents('id-ID', 'IDR'),
+    events: buildEvents('id-ID', 'IDR', 'IDR'),
   },
 };
 
