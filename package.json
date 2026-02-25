@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "data:refresh": "node scripts/prepare-all-data.mjs"
   },
   "dependencies": {
     "@cloudflare/pages-plugin-vercel-og": "^0.1.2",

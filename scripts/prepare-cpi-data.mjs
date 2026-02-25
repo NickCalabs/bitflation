@@ -102,9 +102,9 @@ async function main() {
     }
   }
 
-  const outPath = join(__dirname, '..', 'src', 'data', 'cpi-monthly.json');
+  const outPath = join(__dirname, '..', 'src', 'data', 'usd', 'cpi-monthly.json');
   writeFileSync(outPath, JSON.stringify(entries));
-  console.log(`\nWrote ${entries.length} entries to src/data/cpi-monthly.json`);
+  console.log(`\nWrote ${entries.length} entries to src/data/usd/cpi-monthly.json`);
 }
 
 main().catch(console.error);

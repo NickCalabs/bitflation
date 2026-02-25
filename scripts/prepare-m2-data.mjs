@@ -54,10 +54,10 @@ async function main() {
     }
   }
 
-  const outPath = join(__dirname, '..', 'src', 'data', 'm2-monthly.json');
+  const outPath = join(__dirname, '..', 'src', 'data', 'usd', 'm2-monthly.json');
   writeFileSync(outPath, JSON.stringify(entries));
   const sizeKB = (JSON.stringify(entries).length / 1024).toFixed(0);
-  console.log(`\nWrote ${entries.length} entries to src/data/m2-monthly.json (${sizeKB}KB)`);
+  console.log(`\nWrote ${entries.length} entries to src/data/usd/m2-monthly.json (${sizeKB}KB)`);
 }
 
 main().catch(console.error);
