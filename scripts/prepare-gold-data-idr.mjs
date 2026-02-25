@@ -128,12 +128,13 @@ async function fetchGoldEur() {
     if (period && !isNaN(value)) fxRates.set(period, value);
   }
 
+  // ECB series EXR/M.USD.EUR.SP00.A gives USD per 1 EUR (e.g. 1.09)
   const entries = [];
   for (const [period, usdPrice] of goldUsd) {
-    const eurPerUsd = fxRates.get(period);
-    if (eurPerUsd) {
+    const usdPerEur = fxRates.get(period);
+    if (usdPerEur) {
       const date = period.length === 7 ? `${period}-01` : period;
-      entries.push({ date, value: Math.round(usdPrice * eurPerUsd * 100) / 100 });
+      entries.push({ date, value: Math.round(usdPrice / usdPerEur * 100) / 100 });
     }
   }
 

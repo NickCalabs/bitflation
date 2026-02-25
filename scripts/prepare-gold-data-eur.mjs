@@ -9,7 +9,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * 1. datahub.io USD gold prices (same source as USD gold script)
  * 2. ECB EUR/USD exchange rate (monthly)
  *
- * gold_eur = gold_usd × eur_per_usd
+ * gold_eur = gold_usd / usd_per_eur
  */
 async function main() {
   console.log('Computing gold prices in EUR (datahub USD gold × ECB EUR/USD rate)...');
@@ -53,13 +53,14 @@ async function main() {
   }
   console.log(`  Got ${fxRates.size} EUR/USD rates`);
 
-  // Step 3: Convert gold_usd × eur_per_usd = gold_eur
+  // Step 3: Convert gold_usd / usd_per_eur = gold_eur
+  // ECB series EXR/M.USD.EUR.SP00.A gives USD per 1 EUR (e.g. 1.09)
   const entries = [];
   for (const [period, usdPrice] of goldUsd) {
-    const eurPerUsd = fxRates.get(period);
-    if (eurPerUsd) {
+    const usdPerEur = fxRates.get(period);
+    if (usdPerEur) {
       const date = period.length === 7 ? `${period}-01` : period;
-      entries.push({ date, value: Math.round(usdPrice * eurPerUsd * 100) / 100 });
+      entries.push({ date, value: Math.round(usdPrice / usdPerEur * 100) / 100 });
     }
   }
 
