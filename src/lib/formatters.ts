@@ -1,17 +1,30 @@
-const usdFormatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 0,
-});
+import type { CurrencyCode } from './types';
 
-const usdCompactFormatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  notation: 'compact',
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 1,
-});
+let currentLocale = 'en-US';
+let currentCurrency: CurrencyCode = 'USD';
+
+// Cached formatters — recreated when currency changes
+let currencyFormatter: Intl.NumberFormat;
+let currencyCompactFormatter: Intl.NumberFormat;
+
+function buildFormatters() {
+  currencyFormatter = new Intl.NumberFormat(currentLocale, {
+    style: 'currency',
+    currency: currentCurrency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+  currencyCompactFormatter = new Intl.NumberFormat(currentLocale, {
+    style: 'currency',
+    currency: currentCurrency,
+    notation: 'compact',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 1,
+  });
+}
+
+// Initialize with defaults
+buildFormatters();
 
 const percentFormatter = new Intl.NumberFormat('en-US', {
   style: 'percent',
@@ -20,13 +33,29 @@ const percentFormatter = new Intl.NumberFormat('en-US', {
   signDisplay: 'exceptZero',
 });
 
-export function formatUSD(value: number): string {
-  return usdFormatter.format(value);
+/**
+ * Switch all currency formatters to a new currency.
+ * Call this when the user changes currency — all subsequent
+ * formatCurrency/formatCurrencyCompact calls use the new currency.
+ */
+export function setFormatterCurrency(locale: string, currency: CurrencyCode): void {
+  if (locale === currentLocale && currency === currentCurrency) return;
+  currentLocale = locale;
+  currentCurrency = currency;
+  buildFormatters();
 }
 
-export function formatUSDCompact(value: number): string {
-  return usdCompactFormatter.format(value);
+export function formatCurrency(value: number): string {
+  return currencyFormatter.format(value);
 }
+
+export function formatCurrencyCompact(value: number): string {
+  return currencyCompactFormatter.format(value);
+}
+
+/** Backward-compatible alias */
+export const formatUSD = formatCurrency;
+export const formatUSDCompact = formatCurrencyCompact;
 
 export function formatPercent(value: number): string {
   return percentFormatter.format(value);

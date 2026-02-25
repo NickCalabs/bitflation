@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import type { PricePoint } from '../lib/types';
 import { calculateReturns } from '../lib/calculateReturns';
+import { formatCurrency } from '../lib/formatters';
 import styles from './Calculator.module.css';
 
 interface CalculatorProps {
@@ -8,17 +9,10 @@ interface CalculatorProps {
   cpiMap: Map<string, number>;
   m2Map: Map<string, number>;
   goldMap: Map<string, number>;
+  currencyCode: string;
 }
 
 type InputMode = 'USD' | 'BTC';
-
-function formatUsd(value: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(value);
-}
 
 function formatPct(value: number): string {
   const sign = value >= 0 ? '+' : '';
@@ -29,7 +23,7 @@ function formatBtc(value: number): string {
   return `${value.toFixed(4)} BTC`;
 }
 
-export function Calculator({ prices, cpiMap, m2Map, goldMap }: CalculatorProps) {
+export function Calculator({ prices, cpiMap, m2Map, goldMap, currencyCode }: CalculatorProps) {
   const [open, setOpen] = useState(false);
   const [dateStr, setDateStr] = useState('2020-01-01');
   const [amount, setAmount] = useState('1000');
@@ -103,7 +97,7 @@ export function Calculator({ prices, cpiMap, m2Map, goldMap }: CalculatorProps) 
               className={`${styles.segBtn} ${mode === 'USD' ? styles.active : ''}`}
               onClick={() => setMode('USD')}
             >
-              USD
+              {currencyCode}
             </button>
             <button
               className={`${styles.segBtn} ${mode === 'BTC' ? styles.active : ''}`}
@@ -118,26 +112,26 @@ export function Calculator({ prices, cpiMap, m2Map, goldMap }: CalculatorProps) 
       {result ? (
         <>
           <p className={styles.summary}>
-            {formatBtc(result.btcAmount)} purchased at {formatUsd(result.btcPriceThen)} on {result.purchaseDate}
+            {formatBtc(result.btcAmount)} purchased at {formatCurrency(result.btcPriceThen)} on {result.purchaseDate}
           </p>
           <div className={styles.grid}>
             <div className={styles.card}>
               <span className={styles.cardLabel}>Nominal</span>
-              <span className={styles.cardValue}>{formatUsd(result.nominalValue)}</span>
+              <span className={styles.cardValue}>{formatCurrency(result.nominalValue)}</span>
               <span className={`${styles.cardReturn} ${result.nominalReturn >= 0 ? styles.positive : styles.negative}`}>
                 {formatPct(result.nominalReturn)}
               </span>
             </div>
             <div className={styles.card}>
               <span className={styles.cardLabel}>CPI-Adjusted</span>
-              <span className={styles.cardValue}>{formatUsd(result.cpiAdjustedValue)}</span>
+              <span className={styles.cardValue}>{formatCurrency(result.cpiAdjustedValue)}</span>
               <span className={`${styles.cardReturn} ${result.cpiAdjustedReturn >= 0 ? styles.positive : styles.negative}`}>
                 {formatPct(result.cpiAdjustedReturn)}
               </span>
             </div>
             <div className={styles.card}>
               <span className={styles.cardLabel}>M2-Adjusted</span>
-              <span className={styles.cardValue}>{formatUsd(result.m2AdjustedValue)}</span>
+              <span className={styles.cardValue}>{formatCurrency(result.m2AdjustedValue)}</span>
               <span className={`${styles.cardReturn} ${result.m2AdjustedReturn >= 0 ? styles.positive : styles.negative}`}>
                 {formatPct(result.m2AdjustedReturn)}
               </span>

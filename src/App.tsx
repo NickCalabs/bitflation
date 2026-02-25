@@ -344,7 +344,7 @@ export default function App() {
             compareAssets={compareAssets}
             viewMode={viewMode}
           />
-          <Calculator prices={stitchedPrices} cpiMap={dailyCpi} m2Map={dailyM2} goldMap={dailyGold} />
+          <Calculator prices={stitchedPrices} cpiMap={dailyCpi} m2Map={dailyM2} goldMap={dailyGold} currencyCode="USD" />
           <Explainer stats={shockStats} />
         </>
       )}
