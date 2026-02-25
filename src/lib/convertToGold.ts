@@ -2,7 +2,7 @@ import type { PricePoint, GoldPricePoint } from './types';
 
 /**
  * Converts BTC/USD prices to BTC/gold-ounces.
- * goldOunces = btcPrice / goldPriceUsd
+ * goldOunces = btcPrice / goldPriceLocal
  */
 export function convertToGold(
   prices: PricePoint[],
@@ -11,14 +11,14 @@ export function convertToGold(
   const result: GoldPricePoint[] = [];
 
   for (const p of prices) {
-    const goldPriceUsd = goldPrices.get(p.date);
-    if (goldPriceUsd === undefined || goldPriceUsd <= 0) continue;
+    const goldPriceLocal = goldPrices.get(p.date);
+    if (goldPriceLocal === undefined || goldPriceLocal <= 0) continue;
 
     result.push({
       date: p.date,
       nominalPrice: p.price,
-      goldOunces: p.price / goldPriceUsd,
-      goldPriceUsd,
+      goldOunces: p.price / goldPriceLocal,
+      goldPriceLocal,
     });
   }
 

@@ -35,7 +35,7 @@ export function Calculator({ prices, cpiMap, m2Map, goldMap }: CalculatorProps) 
   const [amount, setAmount] = useState('1000');
   const [mode, setMode] = useState<InputMode>('USD');
 
-  const investmentUsd = useMemo(() => {
+  const investmentAmount = useMemo(() => {
     const num = Number(amount);
     if (!num || num <= 0) return 0;
     if (mode === 'USD') return num;
@@ -45,9 +45,9 @@ export function Calculator({ prices, cpiMap, m2Map, goldMap }: CalculatorProps) 
   }, [amount, mode, dateStr, prices]);
 
   const result = useMemo(() => {
-    if (investmentUsd <= 0) return null;
-    return calculateReturns(dateStr, investmentUsd, prices, cpiMap, m2Map, goldMap);
-  }, [dateStr, investmentUsd, prices, cpiMap, m2Map, goldMap]);
+    if (investmentAmount <= 0) return null;
+    return calculateReturns(dateStr, investmentAmount, prices, cpiMap, m2Map, goldMap);
+  }, [dateStr, investmentAmount, prices, cpiMap, m2Map, goldMap]);
 
   const minDate = prices.length > 0 ? prices[0].date : '2013-01-01';
   const maxDate = prices.length > 0 ? prices[prices.length - 1].date : '';
@@ -152,7 +152,7 @@ export function Calculator({ prices, cpiMap, m2Map, goldMap }: CalculatorProps) 
             </div>
           </div>
         </>
-      ) : investmentUsd > 0 ? (
+      ) : investmentAmount > 0 ? (
         <p className={styles.noData}>No data available for this date. Try a date after {minDate}.</p>
       ) : null}
     </section>

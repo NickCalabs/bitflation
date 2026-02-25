@@ -81,7 +81,7 @@ export function CustomTooltip({ selectedMetrics, compareAssets, active, payload 
           <span className={styles.value}>{formatGoldOz(data.goldOunces as number)}</span>
         </div>
         <div className={styles.sub}>
-          {formatUSD(data.goldPriceUsd as number)}/oz
+          {formatUSD(data.goldPriceLocal as number)}/oz
         </div>
       </div>
     );

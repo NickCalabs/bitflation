@@ -20,7 +20,7 @@ function findNearest(map: Map<string, number>, targetDate: string): number | und
  */
 export function calculateReturns(
   purchaseDate: string,
-  investmentUsd: number,
+  investmentAmount: number,
   prices: PricePoint[],
   cpiMap: Map<string, number>,
   m2Map: Map<string, number>,
@@ -35,36 +35,36 @@ export function calculateReturns(
   const latest = prices[prices.length - 1];
   const btcPriceThen = entry.price;
   const btcPriceNow = latest.price;
-  const btcAmount = investmentUsd / btcPriceThen;
+  const btcAmount = investmentAmount / btcPriceThen;
 
   // Nominal
   const nominalValue = btcAmount * btcPriceNow;
-  const nominalReturn = (nominalValue - investmentUsd) / investmentUsd;
+  const nominalReturn = (nominalValue - investmentAmount) / investmentAmount;
 
   // CPI-adjusted
   const cpiThen = findNearest(cpiMap, entry.date);
   const cpiNow = findNearest(cpiMap, latest.date);
   const cpiRatio = cpiThen && cpiNow ? cpiThen / cpiNow : 1;
   const cpiAdjustedValue = nominalValue * cpiRatio;
-  const cpiAdjustedReturn = (cpiAdjustedValue - investmentUsd) / investmentUsd;
+  const cpiAdjustedReturn = (cpiAdjustedValue - investmentAmount) / investmentAmount;
 
   // M2-adjusted
   const m2Then = findNearest(m2Map, entry.date);
   const m2Now = findNearest(m2Map, latest.date);
   const m2Ratio = m2Then && m2Now ? m2Then / m2Now : 1;
   const m2AdjustedValue = nominalValue * m2Ratio;
-  const m2AdjustedReturn = (m2AdjustedValue - investmentUsd) / investmentUsd;
+  const m2AdjustedReturn = (m2AdjustedValue - investmentAmount) / investmentAmount;
 
   // Gold
   const goldThen = findNearest(goldMap, entry.date);
   const goldNow = findNearest(goldMap, latest.date);
-  const goldOuncesThen = goldThen ? investmentUsd / goldThen : 0;
+  const goldOuncesThen = goldThen ? investmentAmount / goldThen : 0;
   const goldOuncesNow = goldNow ? nominalValue / goldNow : 0;
   const goldReturn = goldOuncesThen > 0 ? (goldOuncesNow - goldOuncesThen) / goldOuncesThen : 0;
 
   return {
     purchaseDate: entry.date,
-    investmentUsd,
+    investmentAmount,
     btcAmount,
     btcPriceThen,
     btcPriceNow,

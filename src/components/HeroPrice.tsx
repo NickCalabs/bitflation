@@ -50,7 +50,7 @@ export function HeroPrice({ latestPoint, anchorYear, metric, secondaryMetrics, v
           <span className={styles.anchorLabel}>gold</span>
         </div>
         <div className={styles.nominalRow}>
-          Gold price: <span className={styles.nominalPrice}>{formatUSD(point.goldPriceUsd)}/oz</span>
+          Gold price: <span className={styles.nominalPrice}>{formatUSD(point.goldPriceLocal)}/oz</span>
         </div>
         <div className={`${styles.nominalRow} ${viewMode === 'realPrice' ? styles.muted : ''}`}>
           Nominal: <span className={styles.nominalPrice}>{formatUSD(point.nominalPrice)}</span>

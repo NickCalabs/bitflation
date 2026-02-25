@@ -34,7 +34,7 @@ export type LiveDataStatus = 'all' | 'partial' | 'none';
 
 export interface CalculatorResult {
   purchaseDate: string;
-  investmentUsd: number;
+  investmentAmount: number;
   btcAmount: number;
   btcPriceThen: number;
   btcPriceNow: number;
@@ -65,5 +65,5 @@ export interface GoldPricePoint {
   date: string; // YYYY-MM-DD
   nominalPrice: number;   // BTC in USD
   goldOunces: number;     // BTC in oz of gold
-  goldPriceUsd: number;   // price of 1 oz gold that day
+  goldPriceLocal: number;   // price of 1 oz gold that day
 }
