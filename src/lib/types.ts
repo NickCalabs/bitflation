@@ -49,6 +49,8 @@ export interface CalculatorResult {
   goldReturn: number;          // ratio of gold ounces now vs then
 }
 
+export type AppTab = 'chart' | 'calculator';
+
 export type ViewMode = 'compare' | 'realPrice';
 
 export type ComparisonAsset = 'sp500' | 'gold' | 'housing';

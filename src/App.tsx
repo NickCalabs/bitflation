@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import type { Timeframe, InflationMetric, DeflatorMetric, LiveDataStatus, PricePoint, DeflatorPoint, AdjustedPricePoint, GoldPricePoint, ComparisonAsset, ComparisonPoint, MultiMetricPoint, ViewMode } from './lib/types';
+import type { Timeframe, InflationMetric, DeflatorMetric, LiveDataStatus, PricePoint, DeflatorPoint, AdjustedPricePoint, GoldPricePoint, ComparisonAsset, ComparisonPoint, MultiMetricPoint, ViewMode, AppTab } from './lib/types';
 import { interpolateMonthlyToDaily } from './lib/interpolateCpi';
 import { adjustPrices } from './lib/adjustPrices';
 import { computeBitflationIndex } from './lib/computeBitflationIndex';
@@ -18,6 +18,8 @@ import { PriceChart } from './components/PriceChart';
 import { Calculator } from './components/Calculator';
 import { Explainer } from './components/Explainer';
 import { Footer } from './components/Footer';
+import { TabNav } from './components/TabNav';
+import { CpiCalculator } from './components/CpiCalculator';
 
 import staticBtcData from './data/btc-daily.json';
 import staticCpiData from './data/cpi-monthly.json';
@@ -46,6 +48,7 @@ export default function App() {
   const [showGap, setShowGap] = useState(initial.gap ?? true);
   const [compareAssets, setCompareAssets] = useState<ComparisonAsset[]>(initial.compare ?? []);
   const [viewMode, setViewMode] = useState<ViewMode>(initial.view ?? 'compare');
+  const [activeTab, setActiveTab] = useState<AppTab>(initial.tab ?? 'chart');
   const [livePrices, setLivePrices] = useState<PricePoint[]>([]);
   const [liveDxy, setLiveDxy] = useState<DeflatorPoint[]>([]);
   const [liveM2, setLiveM2] = useState<DeflatorPoint[]>([]);
@@ -86,8 +89,8 @@ export default function App() {
 
   // 2. Sync state → URL
   useEffect(() => {
-    writeUrlState({ metrics: selectedMetrics, anchor: anchorYear, tf: timeframe, log: logScale, events: showEvents, compare: compareAssets, gap: showGap, view: viewMode });
-  }, [selectedMetrics, anchorYear, timeframe, logScale, showEvents, compareAssets, showGap, viewMode]);
+    writeUrlState({ metrics: selectedMetrics, anchor: anchorYear, tf: timeframe, log: logScale, events: showEvents, compare: compareAssets, gap: showGap, view: viewMode, tab: activeTab });
+  }, [selectedMetrics, anchorYear, timeframe, logScale, showEvents, compareAssets, showGap, viewMode, activeTab]);
 
   // 3. Stitch static + live
   const stitchedPrices = useMemo(
@@ -312,41 +315,48 @@ export default function App() {
   return (
     <>
       <Header />
-      <HeroPrice latestPoint={dataReady ? latestPoint : null} anchorYear={anchorYear} metric={primaryMetric} secondaryMetrics={secondaryHeroMetrics} viewMode={viewMode} />
-      <Controls
-        anchorYear={anchorYear}
-        onAnchorYearChange={setAnchorYear}
-        timeframe={timeframe}
-        onTimeframeChange={setTimeframe}
-        selectedMetrics={selectedMetrics}
-        onSelectedMetricsChange={setSelectedMetrics}
-        logScale={logScale}
-        onLogScaleChange={setLogScale}
-        showEvents={showEvents}
-        onShowEventsChange={setShowEvents}
-        showGap={showGap}
-        onShowGapChange={setShowGap}
-        compareAssets={compareAssets}
-        onCompareAssetsChange={setCompareAssets}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-      />
-      {dataReady && (
+      <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
+      {activeTab === 'chart' ? (
         <>
-          <PriceChart
-            data={filteredData}
+          <HeroPrice latestPoint={dataReady ? latestPoint : null} anchorYear={anchorYear} metric={primaryMetric} secondaryMetrics={secondaryHeroMetrics} viewMode={viewMode} />
+          <Controls
+            anchorYear={anchorYear}
+            onAnchorYearChange={setAnchorYear}
+            timeframe={timeframe}
+            onTimeframeChange={setTimeframe}
             selectedMetrics={selectedMetrics}
+            onSelectedMetricsChange={setSelectedMetrics}
             logScale={logScale}
+            onLogScaleChange={setLogScale}
             showEvents={showEvents}
+            onShowEventsChange={setShowEvents}
             showGap={showGap}
-            multiMetricData={filteredMultiMetric}
-            comparisonData={comparisonData}
+            onShowGapChange={setShowGap}
             compareAssets={compareAssets}
+            onCompareAssetsChange={setCompareAssets}
             viewMode={viewMode}
+            onViewModeChange={setViewMode}
           />
-          <Calculator prices={stitchedPrices} cpiMap={dailyCpi} m2Map={dailyM2} goldMap={dailyGold} />
-          <Explainer stats={shockStats} />
+          {dataReady && (
+            <>
+              <PriceChart
+                data={filteredData}
+                selectedMetrics={selectedMetrics}
+                logScale={logScale}
+                showEvents={showEvents}
+                showGap={showGap}
+                multiMetricData={filteredMultiMetric}
+                comparisonData={comparisonData}
+                compareAssets={compareAssets}
+                viewMode={viewMode}
+              />
+              <Calculator prices={stitchedPrices} cpiMap={dailyCpi} m2Map={dailyM2} goldMap={dailyGold} />
+              <Explainer stats={shockStats} />
+            </>
+          )}
         </>
+      ) : (
+        <CpiCalculator prices={stitchedPrices} />
       )}
       <Footer liveDataStatus={liveDataStatus} />
     </>

@@ -1,4 +1,4 @@
-import type { InflationMetric, Timeframe, ComparisonAsset, ViewMode } from './types';
+import type { InflationMetric, Timeframe, ComparisonAsset, ViewMode, AppTab } from './types';
 
 const VALID_METRICS: InflationMetric[] = ['BFI', 'CPI', 'M2', 'GOLD', 'DXY'];
 const VALID_TIMEFRAMES: Timeframe[] = ['1Y', '5Y', 'ALL'];
@@ -21,6 +21,7 @@ interface UrlState {
   compare: ComparisonAsset[];
   gap: boolean;
   view: ViewMode;
+  tab?: AppTab;
 }
 
 export function parseUrlState(): Partial<UrlState> {
@@ -80,6 +81,11 @@ export function parseUrlState(): Partial<UrlState> {
     result.view = 'realPrice';
   }
 
+  const tab = params.get('tab');
+  if (tab === 'calculator') {
+    result.tab = 'calculator';
+  }
+
   return result;
 }
 
@@ -110,6 +116,9 @@ export function writeUrlState(state: UrlState): void {
   }
   if (state.view === 'realPrice') {
     params.set('view', 'real');
+  }
+  if (state.tab === 'calculator') {
+    params.set('tab', 'calculator');
   }
 
   const search = params.toString();
