@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import type { Timeframe, InflationMetric, DeflatorMetric, LiveDataStatus, PricePoint, DeflatorPoint, AdjustedPricePoint, GoldPricePoint, ComparisonAsset, ComparisonPoint, MultiMetricPoint, ViewMode } from './lib/types';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import type { Timeframe, InflationMetric, DeflatorMetric, LiveDataStatus, PricePoint, DeflatorPoint, AdjustedPricePoint, GoldPricePoint, ComparisonAsset, ComparisonPoint, MultiMetricPoint, ViewMode, CurrencyCode } from './lib/types';
 import { interpolateMonthlyToDaily } from './lib/interpolateCpi';
 import { adjustPrices } from './lib/adjustPrices';
 import { computeBitflationIndex } from './lib/computeBitflationIndex';
@@ -11,6 +11,9 @@ import { filterByTimeframe } from './lib/filterByTimeframe';
 import { parseUrlState, writeUrlState } from './lib/urlState';
 import { normalizeToIndex } from './lib/normalizeToIndex';
 import { interpolatePricesToDaily } from './lib/interpolatePricesToDaily';
+import { setFormatterCurrency } from './lib/formatters';
+import { loadCurrencyData, type CurrencyData } from './lib/loadCurrencyData';
+import { CURRENCIES, DEFAULT_CURRENCY } from './lib/currencies';
 import { Header } from './components/Header';
 import { HeroPrice } from './components/HeroPrice';
 import { Controls } from './components/Controls';
@@ -19,25 +22,10 @@ import { Calculator } from './components/Calculator';
 import { Explainer } from './components/Explainer';
 import { Footer } from './components/Footer';
 
-import staticBtcData from './data/usd/btc-daily.json';
-import staticCpiData from './data/usd/cpi-monthly.json';
-import staticM2Data from './data/usd/m2-monthly.json';
-import staticGoldData from './data/usd/gold-monthly.json';
-import staticDxyData from './data/usd/dxy-daily.json';
-import staticSp500Data from './data/usd/sp500-daily.json';
-import staticHousingData from './data/usd/housing-monthly.json';
-
-const staticBtc = staticBtcData as PricePoint[];
-const staticCpi = staticCpiData as DeflatorPoint[];
-const staticM2 = staticM2Data as DeflatorPoint[];
-const staticGold = staticGoldData as DeflatorPoint[];
-const staticDxy = staticDxyData as DeflatorPoint[];
-const staticSp500 = staticSp500Data as PricePoint[];
-const staticHousing = staticHousingData as PricePoint[];
-
 const initial = parseUrlState();
 
 export default function App() {
+  const [currency, setCurrency] = useState<CurrencyCode>(initial.cur ?? DEFAULT_CURRENCY);
   const [anchorYear, setAnchorYear] = useState(initial.anchor ?? 2015);
   const [timeframe, setTimeframe] = useState<Timeframe>(initial.tf ?? 'ALL');
   const [selectedMetrics, setSelectedMetrics] = useState<InflationMetric[]>(initial.metrics ?? ['BFI']);
@@ -46,6 +34,7 @@ export default function App() {
   const [showGap, setShowGap] = useState(initial.gap ?? true);
   const [compareAssets, setCompareAssets] = useState<ComparisonAsset[]>(initial.compare ?? []);
   const [viewMode, setViewMode] = useState<ViewMode>(initial.view ?? 'compare');
+  const [staticData, setStaticData] = useState<CurrencyData | null>(null);
   const [livePrices, setLivePrices] = useState<PricePoint[]>([]);
   const [liveDxy, setLiveDxy] = useState<DeflatorPoint[]>([]);
   const [liveM2, setLiveM2] = useState<DeflatorPoint[]>([]);
@@ -53,60 +42,147 @@ export default function App() {
   const [liveDataStatus, setLiveDataStatus] = useState<LiveDataStatus>('none');
   const [dataReady, setDataReady] = useState(false);
 
+  const currencyConfig = CURRENCIES[currency];
+  const prevCurrencyRef = useRef(currency);
+
   // Derived state
   const primaryMetric = selectedMetrics[0];
   const isGoldMode = selectedMetrics.length === 1 && selectedMetrics[0] === 'GOLD';
   const deflatorMetrics = selectedMetrics.filter((m): m is DeflatorMetric => m !== 'GOLD');
 
-  // 1. Fetch all live data on mount — dataReady gates all rendering
-  useEffect(() => {
-    Promise.all([
-      fetchLivePrices(),
-      fetchFred('DTWEXBGS', '2025-06-01'),
-      fetchFred('M2SL', '2025-06-01'),
-      fetchFred('SP500', '2025-06-01'),
-    ]).then(([btcPrices, dxyData, m2Data, sp500Data]) => {
-      if (btcPrices.length > 0) setLivePrices(btcPrices);
-      if (dxyData.length > 0) setLiveDxy(dxyData);
-      if (m2Data.length > 0) setLiveM2(m2Data);
-      if (sp500Data.length > 0) setLiveSp500(sp500Data);
+  // Validate metrics/compare when currency changes
+  const handleCurrencyChange = useCallback((newCurrency: CurrencyCode) => {
+    const config = CURRENCIES[newCurrency];
 
-      const successes = [btcPrices, dxyData, m2Data].filter(
-        (d) => d.length > 0
-      ).length;
-      setLiveDataStatus(
-        successes === 3 ? 'all' : successes > 0 ? 'partial' : 'none'
-      );
-      setDataReady(true);
-    }, () => {
-      // All fetches failed — render with static data only
-      setDataReady(true);
+    // Filter selected metrics to only those available for the new currency
+    setSelectedMetrics(prev => {
+      const valid = prev.filter(m => config.availableMetrics.includes(m));
+      return valid.length > 0 ? valid : ['BFI'];
     });
+
+    // Filter compare assets to only those available
+    setCompareAssets(prev => prev.filter(a => config.availableCompareAssets.includes(a)));
+
+    setCurrency(newCurrency);
   }, []);
+
+  // 1. Load static data + fetch live data — dataReady gates all rendering
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setDataReady(false);
+
+      // Update formatters for the new currency
+      setFormatterCurrency(currencyConfig.locale, currency);
+
+      // Load static data
+      let data: CurrencyData;
+      try {
+        data = await loadCurrencyData(currency);
+      } catch (err) {
+        console.warn(`Failed to load static data for ${currency}, reverting`, err);
+        // Revert to previous currency if static data fails
+        if (prevCurrencyRef.current !== currency) {
+          setCurrency(prevCurrencyRef.current);
+        }
+        return;
+      }
+
+      if (cancelled) return;
+
+      // Reset live data
+      setLivePrices([]);
+      setLiveDxy([]);
+      setLiveM2([]);
+      setLiveSp500([]);
+
+      setStaticData(data);
+      prevCurrencyRef.current = currency;
+
+      // Build live data fetch promises
+      const fetches: Promise<unknown>[] = [
+        fetchLivePrices(currencyConfig.coingeckoVsCurrency, currencyConfig.blockchainTickerKey),
+      ];
+
+      // Fetch live DXY if available
+      const dxyFetch = currencyConfig.fredSeries.dxy
+        ? fetchFred(currencyConfig.fredSeries.dxy, currencyConfig.fredLiveStartDate)
+        : Promise.resolve([] as DeflatorPoint[]);
+      fetches.push(dxyFetch);
+
+      // Fetch live M2 if available
+      const m2Fetch = currencyConfig.fredSeries.m2
+        ? fetchFred(currencyConfig.fredSeries.m2, currencyConfig.fredLiveStartDate)
+        : Promise.resolve([] as DeflatorPoint[]);
+      fetches.push(m2Fetch);
+
+      // Fetch live SP500 if available
+      const sp500Fetch = currencyConfig.fredSeries.sp500
+        ? fetchFred(currencyConfig.fredSeries.sp500, currencyConfig.fredLiveStartDate)
+        : Promise.resolve([] as DeflatorPoint[]);
+      fetches.push(sp500Fetch);
+
+      Promise.all(fetches).then(([btcPrices, dxyData, m2Data, sp500Data]) => {
+        if (cancelled) return;
+        const btc = btcPrices as PricePoint[];
+        const dxy = dxyData as DeflatorPoint[];
+        const m2 = m2Data as DeflatorPoint[];
+        const sp500 = sp500Data as DeflatorPoint[];
+
+        if (btc.length > 0) setLivePrices(btc);
+        if (dxy.length > 0) setLiveDxy(dxy);
+        if (m2.length > 0) setLiveM2(m2);
+        if (sp500.length > 0) setLiveSp500(sp500);
+
+        // Count successes for live data status (BTC + relevant fetches)
+        const relevantFetches: { length: number }[] = [btc];
+        if (currencyConfig.fredSeries.dxy) relevantFetches.push(dxy);
+        if (currencyConfig.fredSeries.m2) relevantFetches.push(m2);
+        const successes = relevantFetches.filter(d => d.length > 0).length;
+        setLiveDataStatus(
+          successes === relevantFetches.length ? 'all' : successes > 0 ? 'partial' : 'none'
+        );
+        setDataReady(true);
+      }, () => {
+        if (cancelled) return;
+        setDataReady(true);
+      });
+    }
+
+    load();
+    return () => { cancelled = true; };
+  }, [currency, currencyConfig]);
 
   // 2. Sync state → URL
   useEffect(() => {
-    writeUrlState({ metrics: selectedMetrics, anchor: anchorYear, tf: timeframe, log: logScale, events: showEvents, compare: compareAssets, gap: showGap, view: viewMode });
-  }, [selectedMetrics, anchorYear, timeframe, logScale, showEvents, compareAssets, showGap, viewMode]);
+    writeUrlState({ metrics: selectedMetrics, anchor: anchorYear, tf: timeframe, log: logScale, events: showEvents, compare: compareAssets, gap: showGap, view: viewMode, cur: currency });
+  }, [selectedMetrics, anchorYear, timeframe, logScale, showEvents, compareAssets, showGap, viewMode, currency]);
 
   // 3. Stitch static + live
   const stitchedPrices = useMemo(
-    () => stitchPrices(staticBtc, livePrices),
-    [livePrices]
+    () => staticData ? stitchPrices(staticData.btc, livePrices) : [],
+    [staticData, livePrices]
   );
   const mergedDxy = useMemo(
-    () => stitchDeflators(staticDxy, liveDxy),
-    [liveDxy]
+    () => staticData ? stitchDeflators(staticData.dxy, liveDxy) : [],
+    [staticData, liveDxy]
   );
   const mergedM2 = useMemo(
-    () => stitchDeflators(staticM2, liveM2),
-    [liveM2]
+    () => staticData ? stitchDeflators(staticData.m2, liveM2) : [],
+    [staticData, liveM2]
   );
 
   // 4. Interpolate monthly data to daily
-  const dailyCpi = useMemo(() => interpolateMonthlyToDaily(staticCpi), []);
+  const dailyCpi = useMemo(
+    () => staticData ? interpolateMonthlyToDaily(staticData.cpi) : new Map<string, number>(),
+    [staticData]
+  );
   const dailyM2 = useMemo(() => interpolateMonthlyToDaily(mergedM2), [mergedM2]);
-  const dailyGold = useMemo(() => interpolateMonthlyToDaily(staticGold), []);
+  const dailyGold = useMemo(
+    () => staticData ? interpolateMonthlyToDaily(staticData.gold) : new Map<string, number>(),
+    [staticData]
+  );
   // DXY is already daily — build a forward-filled Map
   const dailyDxy = useMemo(() => {
     const map = new Map<string, number>();
@@ -134,16 +210,17 @@ export default function App() {
 
   // 4b. Comparison asset data
   const stitchedSp500 = useMemo(() => {
+    if (!staticData) return [];
     const liveSp500AsPrices: PricePoint[] = liveSp500.map((d) => ({
       date: d.date,
       price: d.value,
     }));
-    return stitchPrices(staticSp500, liveSp500AsPrices);
-  }, [liveSp500]);
+    return stitchPrices(staticData.sp500, liveSp500AsPrices);
+  }, [staticData, liveSp500]);
 
   const dailyHousing = useMemo(
-    () => interpolatePricesToDaily(staticHousing),
-    []
+    () => staticData ? interpolatePricesToDaily(staticData.housing) : [],
+    [staticData]
   );
 
   // Convert dailyGold Map → PricePoint[] for use as comparison asset
@@ -243,7 +320,7 @@ export default function App() {
     const ref = '2020-01-01';
     const today = stitchedPrices.length > 0 ? stitchedPrices[stitchedPrices.length - 1].date : null;
 
-    // Dollar purchasing power loss via CPI
+    // Currency purchasing power loss via CPI
     const cpiRef = dailyCpi.get(ref);
     const cpiNow = today ? dailyCpi.get(today) : undefined;
     const dollarLoss = cpiRef && cpiNow ? 1 - cpiRef / cpiNow : null;
@@ -311,8 +388,8 @@ export default function App() {
 
   return (
     <>
-      <Header />
-      <HeroPrice latestPoint={dataReady ? latestPoint : null} anchorYear={anchorYear} metric={primaryMetric} secondaryMetrics={secondaryHeroMetrics} viewMode={viewMode} />
+      <Header currency={currency} currencyConfig={currencyConfig} onCurrencyChange={handleCurrencyChange} />
+      <HeroPrice latestPoint={dataReady ? latestPoint : null} anchorYear={anchorYear} metric={primaryMetric} secondaryMetrics={secondaryHeroMetrics} viewMode={viewMode} currencyCode={currency} />
       <Controls
         anchorYear={anchorYear}
         onAnchorYearChange={setAnchorYear}
@@ -330,6 +407,7 @@ export default function App() {
         onCompareAssetsChange={setCompareAssets}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
+        currencyConfig={currencyConfig}
       />
       {dataReady && (
         <>
@@ -343,12 +421,13 @@ export default function App() {
             comparisonData={comparisonData}
             compareAssets={compareAssets}
             viewMode={viewMode}
+            currencyConfig={currencyConfig}
           />
-          <Calculator prices={stitchedPrices} cpiMap={dailyCpi} m2Map={dailyM2} goldMap={dailyGold} currencyCode="USD" />
-          <Explainer stats={shockStats} />
+          <Calculator prices={stitchedPrices} cpiMap={dailyCpi} m2Map={dailyM2} goldMap={dailyGold} currencyCode={currency} />
+          <Explainer stats={shockStats} currencyConfig={currencyConfig} />
         </>
       )}
-      <Footer liveDataStatus={liveDataStatus} />
+      <Footer liveDataStatus={liveDataStatus} currencyConfig={currencyConfig} />
     </>
   );
 }

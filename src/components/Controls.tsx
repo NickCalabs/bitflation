@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Timeframe, InflationMetric, ComparisonAsset, ViewMode } from '../lib/types';
+import type { CurrencyConfig } from '../lib/currencies';
 import styles from './Controls.module.css';
 
 interface ControlsProps {
@@ -19,17 +20,18 @@ interface ControlsProps {
   onCompareAssetsChange: (assets: ComparisonAsset[]) => void;
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
+  currencyConfig: CurrencyConfig;
 }
 
 const TIMEFRAMES: Timeframe[] = ['1Y', '5Y', 'ALL'];
 
-const COMPARE_OPTIONS: { value: ComparisonAsset; label: string; color: string }[] = [
+const ALL_COMPARE_OPTIONS: { value: ComparisonAsset; label: string; color: string }[] = [
   { value: 'sp500', label: 'S&P 500', color: '#22d3ee' },
   { value: 'gold', label: 'Gold', color: '#facc15' },
   { value: 'housing', label: 'Housing', color: '#f97316' },
 ];
 
-const DEFLATOR_METRICS: { value: InflationMetric; label: string }[] = [
+const ALL_DEFLATOR_METRICS: { value: InflationMetric; label: string }[] = [
   { value: 'BFI', label: 'Bitflation' },
   { value: 'CPI', label: 'CPI' },
   { value: 'M2', label: 'M2' },
@@ -53,6 +55,7 @@ export function Controls({
   onCompareAssetsChange,
   viewMode,
   onViewModeChange,
+  currencyConfig,
 }: ControlsProps) {
   const [copied, setCopied] = useState(false);
   const currentYear = new Date().getFullYear();
@@ -60,6 +63,17 @@ export function Controls({
   const isGoldMode = selectedMetrics.length === 1 && selectedMetrics[0] === 'GOLD';
   const hideAnchorYear = isGoldMode;
   const compareDisabled = isGoldMode;
+
+  // Filter metrics and compare options to what's available for this currency
+  const deflatorMetrics = ALL_DEFLATOR_METRICS
+    .filter(m => currencyConfig.availableMetrics.includes(m.value))
+    .map(m => ({
+      ...m,
+      label: currencyConfig.metricLabels[m.value] ?? m.label,
+    }));
+  const compareOptions = ALL_COMPARE_OPTIONS.filter(
+    o => currencyConfig.availableCompareAssets.includes(o.value)
+  );
 
   const handleMetricClick = (m: InflationMetric) => {
     if (m === 'GOLD') {
@@ -107,7 +121,7 @@ export function Controls({
           >
             {years.map((y) => (
               <option key={y} value={y}>
-                {y} dollars
+                {y} {currencyConfig.currencyName}
               </option>
             ))}
           </select>
@@ -188,7 +202,7 @@ export function Controls({
       <div className={styles.group}>
         <span className={styles.label}>Metric</span>
         <div className={styles.segmented}>
-          {DEFLATOR_METRICS.map((m) => (
+          {deflatorMetrics.map((m) => (
             <button
               key={m.value}
               className={`${styles.segBtn} ${selectedMetrics.includes(m.value) ? styles.active : ''}`}
@@ -228,7 +242,7 @@ export function Controls({
       <div className={`${styles.group} ${compareDisabled ? styles.compareDisabled : ''}`}>
         <span className={styles.label}>Compare</span>
         <div className={styles.checkboxGroup}>
-          {COMPARE_OPTIONS.map((opt) => (
+          {compareOptions.map((opt) => (
             <label
               key={opt.value}
               className={`${styles.checkboxLabel} ${compareDisabled ? styles.disabled : ''}`}

@@ -17,6 +17,12 @@
   50% { transform: translateY(-4px); }
 }
 
+.right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .tagline {
   color: var(--text-muted);
   font-size: 0.8rem;

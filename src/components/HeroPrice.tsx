@@ -1,5 +1,5 @@
-import type { AdjustedPricePoint, GoldPricePoint, InflationMetric, ViewMode } from '../lib/types';
-import { formatUSD, formatPercent, formatGoldOz } from '../lib/formatters';
+import type { AdjustedPricePoint, GoldPricePoint, InflationMetric, ViewMode, CurrencyCode } from '../lib/types';
+import { formatCurrency, formatPercent, formatGoldOz } from '../lib/formatters';
 import styles from './HeroPrice.module.css';
 
 const METRIC_LABELS: Record<InflationMetric, string> = {
@@ -16,6 +16,7 @@ interface HeroPriceProps {
   metric: InflationMetric;
   secondaryMetrics?: { label: string; adjustedPrice: number; diff: number }[];
   viewMode?: ViewMode;
+  currencyCode: CurrencyCode;
 }
 
 function Skeleton() {
@@ -35,7 +36,7 @@ function Skeleton() {
   );
 }
 
-export function HeroPrice({ latestPoint, anchorYear, metric, secondaryMetrics, viewMode = 'compare' }: HeroPriceProps) {
+export function HeroPrice({ latestPoint, anchorYear, metric, secondaryMetrics, viewMode = 'compare', currencyCode }: HeroPriceProps) {
   if (!latestPoint) {
     return <Skeleton />;
   }
@@ -50,10 +51,10 @@ export function HeroPrice({ latestPoint, anchorYear, metric, secondaryMetrics, v
           <span className={styles.anchorLabel}>gold</span>
         </div>
         <div className={styles.nominalRow}>
-          Gold price: <span className={styles.nominalPrice}>{formatUSD(point.goldPriceLocal)}/oz</span>
+          Gold price: <span className={styles.nominalPrice}>{formatCurrency(point.goldPriceLocal)}/oz</span>
         </div>
         <div className={`${styles.nominalRow} ${viewMode === 'realPrice' ? styles.muted : ''}`}>
-          Nominal: <span className={styles.nominalPrice}>{formatUSD(point.nominalPrice)}</span>
+          Nominal: <span className={styles.nominalPrice}>{formatCurrency(point.nominalPrice)}</span>
         </div>
       </div>
     );
@@ -69,13 +70,13 @@ export function HeroPrice({ latestPoint, anchorYear, metric, secondaryMetrics, v
     <div className={`${styles.hero} ${styles.fadeIn}`}>
       <div className={styles.adjustedRow}>
         <span className={styles.btcSymbol}>&#x20BF;</span>
-        <span className={styles.adjustedPrice}>{formatUSD(adjustedPrice)}</span>
+        <span className={styles.adjustedPrice}>{formatCurrency(adjustedPrice)}</span>
         <span className={styles.anchorLabel}>
-          in {anchorYear} USD ({METRIC_LABELS[metric]}){isEstimate && <span className={styles.estimate}> (est.)</span>}
+          in {anchorYear} {currencyCode} ({METRIC_LABELS[metric]}){isEstimate && <span className={styles.estimate}> (est.)</span>}
         </span>
       </div>
       <div className={`${styles.nominalRow} ${viewMode === 'realPrice' ? styles.muted : ''}`}>
-        Nominal: <span className={styles.nominalPrice}>{formatUSD(nominalPrice)}</span>
+        Nominal: <span className={styles.nominalPrice}>{formatCurrency(nominalPrice)}</span>
       </div>
       <div className={`${styles.diffRow} ${diff >= 0 ? styles.positive : styles.negative}`}>
         {formatPercent(diff)} purchasing power {diff >= 0 ? 'gain' : 'loss'}
@@ -84,7 +85,7 @@ export function HeroPrice({ latestPoint, anchorYear, metric, secondaryMetrics, v
         <div className={styles.secondaryRow}>
           {secondaryMetrics.map(s => (
             <span key={s.label} className={styles.secondaryItem}>
-              {s.label}: {formatUSD(s.adjustedPrice)} ({formatPercent(s.diff)})
+              {s.label}: {formatCurrency(s.adjustedPrice)} ({formatPercent(s.diff)})
             </span>
           ))}
         </div>

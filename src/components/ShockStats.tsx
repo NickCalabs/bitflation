@@ -1,3 +1,4 @@
+import type { CurrencyConfig } from '../lib/currencies';
 import styles from './ShockStats.module.css';
 
 export interface ShockStatsData {
@@ -10,6 +11,7 @@ export interface ShockStatsData {
 
 interface ShockStatsProps {
   stats: ShockStatsData;
+  currencyConfig: CurrencyConfig;
 }
 
 function formatPct(value: number | null): string {
@@ -22,12 +24,14 @@ function formatMultiple(value: number | null): string {
   return `${value.toFixed(1)}x`;
 }
 
-export function ShockStats({ stats }: ShockStatsProps) {
+export function ShockStats({ stats, currencyConfig }: ShockStatsProps) {
+  const { currencyNameSingular, cpiLabel } = currencyConfig;
+
   return (
     <div className={styles.grid}>
       <div className={styles.card}>
         <span className={styles.number}>{formatPct(stats.dollarLoss)}</span>
-        <span className={styles.desc}>Dollar purchasing power lost since 2020 (CPI)</span>
+        <span className={styles.desc}>{currencyNameSingular} purchasing power lost since 2020 ({cpiLabel})</span>
       </div>
       <div className={styles.card}>
         <span className={styles.number}>{formatMultiple(stats.btcNominalGain)}</span>
@@ -35,7 +39,7 @@ export function ShockStats({ stats }: ShockStatsProps) {
       </div>
       <div className={styles.card}>
         <span className={styles.number}>{formatMultiple(stats.btcRealGain)}</span>
-        <span className={styles.desc}>BTC real return since 2020 (CPI-adjusted)</span>
+        <span className={styles.desc}>BTC real return since 2020 ({cpiLabel}-adjusted)</span>
       </div>
       <div className={styles.card}>
         <span className={styles.number}>{formatPct(stats.bfiLoss)}</span>

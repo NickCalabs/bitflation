@@ -1,5 +1,5 @@
 import type { InflationMetric, DeflatorMetric, ComparisonAsset } from '../lib/types';
-import { formatUSD, formatPercent, formatDate, formatGoldOz, formatIndexed } from '../lib/formatters';
+import { formatCurrency, formatPercent, formatDate, formatGoldOz, formatIndexed } from '../lib/formatters';
 import styles from './CustomTooltip.module.css';
 
 const COMPARE_CONFIG: { key: ComparisonAsset; label: string; color: string }[] = [
@@ -73,7 +73,7 @@ export function CustomTooltip({ selectedMetrics, compareAssets, active, payload 
         <div className={styles.row}>
           <span className={`${styles.dot} ${styles.nominal}`} />
           <span className={styles.label}>Nominal</span>
-          <span className={styles.value}>{formatUSD(data.nominalPrice as number)}</span>
+          <span className={styles.value}>{formatCurrency(data.nominalPrice as number)}</span>
         </div>
         <div className={styles.row}>
           <span className={`${styles.dot} ${styles.gold}`} />
@@ -81,7 +81,7 @@ export function CustomTooltip({ selectedMetrics, compareAssets, active, payload 
           <span className={styles.value}>{formatGoldOz(data.goldOunces as number)}</span>
         </div>
         <div className={styles.sub}>
-          {formatUSD(data.goldPriceLocal as number)}/oz
+          {formatCurrency(data.goldPriceLocal as number)}/oz
         </div>
       </div>
     );
@@ -97,7 +97,7 @@ export function CustomTooltip({ selectedMetrics, compareAssets, active, payload 
         <div className={styles.row}>
           <span className={`${styles.dot} ${styles.nominal}`} />
           <span className={styles.label}>Nominal</span>
-          <span className={styles.value}>{formatUSD(nominalPrice)}</span>
+          <span className={styles.value}>{formatCurrency(nominalPrice)}</span>
         </div>
         {deflatorMetrics.map(m => {
           const key = METRIC_KEYS[m];
@@ -108,7 +108,7 @@ export function CustomTooltip({ selectedMetrics, compareAssets, active, payload 
             <div key={m} className={styles.row}>
               <span className={styles.dot} style={{ background: METRIC_COLORS[m] }} />
               <span className={styles.label}>{m}</span>
-              <span className={styles.value}>{formatUSD(val)}</span>
+              <span className={styles.value}>{formatCurrency(val)}</span>
               <span className={`${styles.diffInline} ${diff >= 0 ? styles.positive : styles.negative}`}>
                 {formatPercent(diff)}
               </span>
@@ -129,12 +129,12 @@ export function CustomTooltip({ selectedMetrics, compareAssets, active, payload 
       <div className={styles.row}>
         <span className={`${styles.dot} ${styles.nominal}`} />
         <span className={styles.label}>Nominal</span>
-        <span className={styles.value}>{formatUSD(nominalPrice)}</span>
+        <span className={styles.value}>{formatCurrency(nominalPrice)}</span>
       </div>
       <div className={styles.row}>
         <span className={styles.dot} style={{ background: METRIC_COLORS[deflatorMetrics[0]] }} />
         <span className={styles.label}>Adjusted</span>
-        <span className={styles.value}>{formatUSD(adjustedPrice)}</span>
+        <span className={styles.value}>{formatCurrency(adjustedPrice)}</span>
       </div>
       <div className={`${styles.diff} ${diff >= 0 ? styles.positive : styles.negative}`}>
         {formatPercent(diff)}
