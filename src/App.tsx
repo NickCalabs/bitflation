@@ -19,13 +19,13 @@ import { Calculator } from './components/Calculator';
 import { Explainer } from './components/Explainer';
 import { Footer } from './components/Footer';
 
-import staticBtcData from './data/btc-daily.json';
-import staticCpiData from './data/cpi-monthly.json';
-import staticM2Data from './data/m2-monthly.json';
-import staticGoldData from './data/gold-monthly.json';
-import staticDxyData from './data/dxy-daily.json';
-import staticSp500Data from './data/sp500-daily.json';
-import staticHousingData from './data/housing-monthly.json';
+import staticBtcData from './data/usd/btc-daily.json';
+import staticCpiData from './data/usd/cpi-monthly.json';
+import staticM2Data from './data/usd/m2-monthly.json';
+import staticGoldData from './data/usd/gold-monthly.json';
+import staticDxyData from './data/usd/dxy-daily.json';
+import staticSp500Data from './data/usd/sp500-daily.json';
+import staticHousingData from './data/usd/housing-monthly.json';
 
 const staticBtc = staticBtcData as PricePoint[];
 const staticCpi = staticCpiData as DeflatorPoint[];
