@@ -30,6 +30,8 @@ export interface MultiMetricPoint {
   inflationGap?: number;  // nominalPrice - primaryAdjusted (for gap fill)
 }
 
+export type CurrencyCode = 'USD' | 'EUR' | 'IDR';
+
 export type LiveDataStatus = 'all' | 'partial' | 'none';
 
 export interface CalculatorResult {
