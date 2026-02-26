@@ -84,9 +84,8 @@ export function parseUrlState(): Partial<UrlState> {
   }
 
   const tab = params.get('tab');
-  if (tab === 'calculator') {
-    result.tab = 'calculator';
-  }
+  if (tab === 'calculator') result.tab = 'calculator';
+  else if (tab === 'dca') result.tab = 'dca';
 
   const cur = params.get('cur')?.toUpperCase();
   if (cur && VALID_CURRENCIES.includes(cur as CurrencyCode)) {
@@ -124,9 +123,8 @@ export function writeUrlState(state: UrlState): void {
   if (state.view === 'realPrice') {
     params.set('view', 'real');
   }
-  if (state.tab === 'calculator') {
-    params.set('tab', 'calculator');
-  }
+  if (state.tab === 'calculator') params.set('tab', 'calculator');
+  else if (state.tab === 'dca') params.set('tab', 'dca');
   if (state.cur !== 'USD') {
     params.set('cur', state.cur.toLowerCase());
   }
