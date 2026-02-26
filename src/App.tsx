@@ -23,6 +23,7 @@ import { Explainer } from './components/Explainer';
 import { Footer } from './components/Footer';
 import { TabNav } from './components/TabNav';
 import { CpiCalculator } from './components/CpiCalculator';
+import { IdrDcaCalculator } from './components/IdrDcaCalculator';
 
 const initial = parseUrlState();
 
@@ -53,7 +54,12 @@ export default function App() {
   const isGoldMode = selectedMetrics.length === 1 && selectedMetrics[0] === 'GOLD';
   const deflatorMetrics = selectedMetrics.filter((m): m is DeflatorMetric => m !== 'GOLD');
 
-  // Validate metrics/compare when currency changes
+  // IDR has no Calculator tab: normalize to chart if URL/state has calculator
+  useEffect(() => {
+    if (currency === 'IDR' && activeTab === 'calculator') setActiveTab('chart');
+  }, [currency, activeTab]);
+
+  // Validate metrics/compare when currency changes; clear DCA tab if leaving IDR
   const handleCurrencyChange = useCallback((newCurrency: CurrencyCode) => {
     const config = CURRENCIES[newCurrency];
 
@@ -67,6 +73,8 @@ export default function App() {
     setCompareAssets(prev => prev.filter(a => config.availableCompareAssets.includes(a)));
 
     setCurrency(newCurrency);
+    if (newCurrency !== 'IDR') setActiveTab((t) => (t === 'dca' ? 'chart' : t));
+    if (newCurrency === 'IDR') setActiveTab((t) => (t === 'calculator' ? 'chart' : t));
   }, []);
 
   // 1. Load static data + fetch live data — dataReady gates all rendering
@@ -393,7 +401,7 @@ export default function App() {
   return (
     <>
       <Header currency={currency} currencyConfig={currencyConfig} onCurrencyChange={handleCurrencyChange} />
-      <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <TabNav activeTab={activeTab} onTabChange={setActiveTab} currency={currency} />
       {activeTab === 'chart' ? (
         <>
           <HeroPrice latestPoint={dataReady ? latestPoint : null} anchorYear={anchorYear} metric={primaryMetric} secondaryMetrics={secondaryHeroMetrics} viewMode={viewMode} currencyCode={currency} />
@@ -435,7 +443,10 @@ export default function App() {
             </>
           )}
         </>
+      ) : activeTab === 'dca' ? (
+        <IdrDcaCalculator />
       ) : (
+        // Calculator tab (USD/EUR only; IDR uses Chart + DCA only)
         <CpiCalculator prices={stitchedPrices} />
       )}
       <Footer liveDataStatus={liveDataStatus} currencyConfig={currencyConfig} />

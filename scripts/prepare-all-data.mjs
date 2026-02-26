@@ -23,6 +23,8 @@ const SCRIPTS = [
   'prepare-cpi-data-idr.mjs',
   'prepare-m2-data-idr.mjs',
   'prepare-gold-data-idr.mjs',
+  'prepare-gold-idr-daily.mjs',
+  'prepare-ihsg-daily.mjs',
 ];
 
 let failed = false;
