@@ -1,10 +1,12 @@
 import type { LiveDataStatus } from '../lib/types';
+import type { CurrencyCode } from '../lib/types';
 import type { CurrencyConfig } from '../lib/currencies';
 import styles from './Footer.module.css';
 
 interface FooterProps {
   liveDataStatus: LiveDataStatus;
   currencyConfig: CurrencyConfig;
+  currency: CurrencyCode;
 }
 
 const BADGE_CONFIG: Record<LiveDataStatus, { className: string; label: string }> = {
@@ -13,8 +15,11 @@ const BADGE_CONFIG: Record<LiveDataStatus, { className: string; label: string }>
   none: { className: styles.static, label: 'Static data only' },
 };
 
-export function Footer({ liveDataStatus, currencyConfig }: FooterProps) {
+export function Footer({ liveDataStatus, currencyConfig, currency }: FooterProps) {
   const badge = BADGE_CONFIG[liveDataStatus];
+  const showFooter = currency !== 'IDR';
+
+  if (!showFooter) return null;
 
   return (
     <footer className={styles.footer}>

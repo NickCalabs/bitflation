@@ -332,33 +332,39 @@ export default function App() {
     const ref = '2020-01-01';
     const today = stitchedPrices.length > 0 ? stitchedPrices[stitchedPrices.length - 1].date : null;
 
-    // Currency purchasing power loss via CPI
+    // Use latest value on or before date when exact date is beyond interpolated range (e.g. IDR CPI/M2)
+    const getOnOrBefore = (map: Map<string, number>, date: string): number | undefined => {
+      const exact = map.get(date);
+      if (exact !== undefined) return exact;
+      let best: string | undefined;
+      for (const k of map.keys()) {
+        if (k <= date && (!best || k > best)) best = k;
+      }
+      return best !== undefined ? map.get(best) : undefined;
+    };
+
     const cpiRef = dailyCpi.get(ref);
-    const cpiNow = today ? dailyCpi.get(today) : undefined;
+    const cpiNow = today ? getOnOrBefore(dailyCpi, today) : undefined;
     const dollarLoss = cpiRef && cpiNow ? 1 - cpiRef / cpiNow : null;
 
-    // BTC nominal gain
     const btcRef = stitchedPrices.find((p) => p.date >= ref);
     const btcNow = stitchedPrices.length > 0 ? stitchedPrices[stitchedPrices.length - 1] : null;
     const btcNominalGain = btcRef && btcNow ? btcNow.price / btcRef.price : null;
 
-    // BTC CPI-adjusted gain
     const btcRealGain =
       btcNominalGain !== null && cpiRef && cpiNow
         ? btcNominalGain * (cpiRef / cpiNow)
         : null;
 
-    // BFI purchasing power loss (blended CPI + M2)
     const m2Ref = dailyM2.get(ref);
-    const m2Now = today ? dailyM2.get(today) : undefined;
+    const m2Now = today ? getOnOrBefore(dailyM2, today) : undefined;
     const bfiGrowth2020 = cpiRef && cpiNow && m2Ref && m2Now
       ? 0.5 * (cpiNow / cpiRef) + 0.5 * (m2Now / m2Ref)
       : null;
     const bfiLoss = bfiGrowth2020 !== null ? 1 - (1 / bfiGrowth2020) : null;
 
-    // BTC in gold terms change
     const goldRef = dailyGold.get(ref);
-    const goldNow = today ? dailyGold.get(today) : undefined;
+    const goldNow = today ? getOnOrBefore(dailyGold, today) : undefined;
     const btcGoldChange =
       btcRef && btcNow && goldRef && goldNow
         ? (btcNow.price / goldNow) / (btcRef.price / goldRef)
@@ -449,7 +455,7 @@ export default function App() {
         // Calculator tab (USD/EUR only; IDR uses Chart + DCA only)
         <CpiCalculator prices={stitchedPrices} />
       )}
-      <Footer liveDataStatus={liveDataStatus} currencyConfig={currencyConfig} />
+      <Footer liveDataStatus={liveDataStatus} currencyConfig={currencyConfig} currency={currency} />
     </>
   );
 }
