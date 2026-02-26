@@ -54,6 +54,11 @@ export default function App() {
   const isGoldMode = selectedMetrics.length === 1 && selectedMetrics[0] === 'GOLD';
   const deflatorMetrics = selectedMetrics.filter((m): m is DeflatorMetric => m !== 'GOLD');
 
+  // IDR has no Calculator tab: normalize to chart if URL/state has calculator
+  useEffect(() => {
+    if (currency === 'IDR' && activeTab === 'calculator') setActiveTab('chart');
+  }, [currency, activeTab]);
+
   // Validate metrics/compare when currency changes; clear DCA tab if leaving IDR
   const handleCurrencyChange = useCallback((newCurrency: CurrencyCode) => {
     const config = CURRENCIES[newCurrency];
@@ -69,6 +74,7 @@ export default function App() {
 
     setCurrency(newCurrency);
     if (newCurrency !== 'IDR') setActiveTab((t) => (t === 'dca' ? 'chart' : t));
+    if (newCurrency === 'IDR') setActiveTab((t) => (t === 'calculator' ? 'chart' : t));
   }, []);
 
   // 1. Load static data + fetch live data — dataReady gates all rendering
@@ -440,6 +446,7 @@ export default function App() {
       ) : activeTab === 'dca' ? (
         <IdrDcaCalculator />
       ) : (
+        // Calculator tab (USD/EUR only; IDR uses Chart + DCA only)
         <CpiCalculator prices={stitchedPrices} />
       )}
       <Footer liveDataStatus={liveDataStatus} currencyConfig={currencyConfig} />

@@ -29,3 +29,6 @@ dist-ssr
 # Environment
 .env
 .env.local
+
+# Python (for data scripts using yfinance)
+.venv

@@ -7,13 +7,18 @@ interface TabNavProps {
   currency: CurrencyCode;
 }
 
-const BASE_TABS: { key: AppTab; label: string }[] = [
+const USD_EUR_TABS: { key: AppTab; label: string }[] = [
   { key: 'chart', label: 'Chart' },
   { key: 'calculator', label: 'Calculator' },
 ];
 
+const IDR_TABS: { key: AppTab; label: string }[] = [
+  { key: 'chart', label: 'Chart' },
+  { key: 'dca', label: 'DCA' },
+];
+
 export function TabNav({ activeTab, onTabChange, currency }: TabNavProps) {
-  const tabs = currency === 'IDR' ? [...BASE_TABS, { key: 'dca' as const, label: 'DCA' }] : BASE_TABS;
+  const tabs = currency === 'IDR' ? IDR_TABS : USD_EUR_TABS;
   return (
     <nav className={styles.nav}>
       {tabs.map(({ key, label }) => (

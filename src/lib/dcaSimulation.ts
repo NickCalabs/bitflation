@@ -1,7 +1,6 @@
 /**
- * DCA (Dollar Cost Averaging) simulation — client-side.
- * Given weekly amount (IDR), start date, and daily close series per asset,
- * computes total units accumulated and current value. For deposito, compounds at BI rate.
+ * DCA simulation: amount per period (daily/weekly/monthly), start date, daily series per asset.
+ * Returns total invested, current value, return %, and series for chart. Deposito compounds at BI rate.
  */
 import type { DepositoRate } from './types';
 
@@ -36,12 +35,11 @@ function getDepositoRate(rates: DepositoRate[], date: string): number {
   return 0.035; // fallback 3.5%
 }
 
-/** Generate weekly dates from start to end (e.g. every Friday). */
+/** Generate weekly dates from start to end (every Friday). */
 function getWeeklyDates(startDate: string, endDate: string): string[] {
   const out: string[] = [];
   const start = new Date(startDate);
   const end = new Date(endDate);
-  // Move to next Friday (5) if not already
   let d = new Date(start);
   while (d.getDay() !== 5) d.setDate(d.getDate() + 1);
   while (d <= end) {
@@ -51,9 +49,51 @@ function getWeeklyDates(startDate: string, endDate: string): string[] {
   return out;
 }
 
+/** First day of each month from start to end. */
+function getMonthlyDates(startDate: string, endDate: string): string[] {
+  const out: string[] = [];
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const d = new Date(start.getFullYear(), start.getMonth(), 1);
+  while (d <= end) {
+    out.push(d.toISOString().slice(0, 10));
+    d.setMonth(d.getMonth() + 1);
+  }
+  return out;
+}
+
+/** Every calendar day from start to end. */
+function getDailyDates(startDate: string, endDate: string): string[] {
+  const out: string[] = [];
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const d = new Date(start);
+  while (d <= end) {
+    out.push(d.toISOString().slice(0, 10));
+    d.setDate(d.getDate() + 1);
+  }
+  return out;
+}
+
+export type DcaFrequency = 'daily' | 'weekly' | 'monthly';
+
+function getScheduleDates(frequency: DcaFrequency, startDate: string, endDate: string): string[] {
+  switch (frequency) {
+    case 'daily':
+      return getDailyDates(startDate, endDate);
+    case 'weekly':
+      return getWeeklyDates(startDate, endDate);
+    case 'monthly':
+      return getMonthlyDates(startDate, endDate);
+    default:
+      return getWeeklyDates(startDate, endDate);
+  }
+}
+
 export interface DcaInputs {
-  weeklyAmountIdr: number;
-  yearsAgo: number; // 1, 2, 3, or 5
+  amountPerPeriodIdr: number; // per day, per week, or per month
+  frequency: DcaFrequency;
+  yearsAgo: number; // 1..11 (11 ≈ from 2015, when IHSG data starts)
   btcDaily: DailyPoint[];
   ihsgDaily: DailyPoint[];
   goldDaily: DailyPoint[];
@@ -73,21 +113,20 @@ export function runDcaBtc(inputs: DcaInputs): DcaResult {
   start.setFullYear(start.getFullYear() - inputs.yearsAgo);
   const startStr = start.toISOString().slice(0, 10);
   const endStr = end.toISOString().slice(0, 10);
-  const weeks = getWeeklyDates(startStr, endStr);
+  const dates = getScheduleDates(inputs.frequency, startStr, endStr);
   const series: { date: string; portfolioValue: number }[] = [];
   let totalUnits = 0;
 
-  for (const weekEnd of weeks) {
-    const close = getCloseOnOrBefore(inputs.btcDaily, weekEnd);
+  for (const date of dates) {
+    const close = getCloseOnOrBefore(inputs.btcDaily, date);
     if (close != null && close > 0) {
-      totalUnits += inputs.weeklyAmountIdr / close;
+      totalUnits += inputs.amountPerPeriodIdr / close;
     }
     const latestPrice = getCloseOnOrBefore(inputs.btcDaily, endStr) ?? 0;
-    const value = totalUnits * latestPrice;
-    series.push({ date: weekEnd, portfolioValue: Math.round(value) });
+    series.push({ date, portfolioValue: Math.round(totalUnits * latestPrice) });
   }
 
-  const totalInvested = inputs.weeklyAmountIdr * weeks.length;
+  const totalInvested = inputs.amountPerPeriodIdr * dates.length;
   const currentValue = totalUnits * (getCloseOnOrBefore(inputs.btcDaily, endStr) ?? 0);
   const returnPct = totalInvested > 0 ? ((currentValue - totalInvested) / totalInvested) * 100 : 0;
 
@@ -105,23 +144,20 @@ export function runDcaIhsg(inputs: DcaInputs): DcaResult {
   start.setFullYear(start.getFullYear() - inputs.yearsAgo);
   const startStr = start.toISOString().slice(0, 10);
   const endStr = end.toISOString().slice(0, 10);
-  const weeks = getWeeklyDates(startStr, endStr);
+  const dates = getScheduleDates(inputs.frequency, startStr, endStr);
   const series: { date: string; portfolioValue: number }[] = [];
   let totalUnits = 0;
 
-  for (const weekEnd of weeks) {
-    const close = getCloseOnOrBefore(inputs.ihsgDaily, weekEnd);
+  for (const date of dates) {
+    const close = getCloseOnOrBefore(inputs.ihsgDaily, date);
     if (close != null && close > 0) {
-      totalUnits += inputs.weeklyAmountIdr / close;
+      totalUnits += inputs.amountPerPeriodIdr / close;
     }
     const latestPrice = getCloseOnOrBefore(inputs.ihsgDaily, endStr) ?? 0;
-    series.push({
-      date: weekEnd,
-      portfolioValue: Math.round(totalUnits * latestPrice),
-    });
+    series.push({ date, portfolioValue: Math.round(totalUnits * latestPrice) });
   }
 
-  const totalInvested = inputs.weeklyAmountIdr * weeks.length;
+  const totalInvested = inputs.amountPerPeriodIdr * dates.length;
   const currentValue = totalUnits * (getCloseOnOrBefore(inputs.ihsgDaily, endStr) ?? 0);
   const returnPct = totalInvested > 0 ? ((currentValue - totalInvested) / totalInvested) * 100 : 0;
 
@@ -139,23 +175,20 @@ export function runDcaGold(inputs: DcaInputs): DcaResult {
   start.setFullYear(start.getFullYear() - inputs.yearsAgo);
   const startStr = start.toISOString().slice(0, 10);
   const endStr = end.toISOString().slice(0, 10);
-  const weeks = getWeeklyDates(startStr, endStr);
+  const dates = getScheduleDates(inputs.frequency, startStr, endStr);
   const series: { date: string; portfolioValue: number }[] = [];
   let totalGrams = 0;
 
-  for (const weekEnd of weeks) {
-    const close = getCloseOnOrBefore(inputs.goldDaily, weekEnd);
+  for (const date of dates) {
+    const close = getCloseOnOrBefore(inputs.goldDaily, date);
     if (close != null && close > 0) {
-      totalGrams += inputs.weeklyAmountIdr / close;
+      totalGrams += inputs.amountPerPeriodIdr / close;
     }
     const latestPrice = getCloseOnOrBefore(inputs.goldDaily, endStr) ?? 0;
-    series.push({
-      date: weekEnd,
-      portfolioValue: Math.round(totalGrams * latestPrice),
-    });
+    series.push({ date, portfolioValue: Math.round(totalGrams * latestPrice) });
   }
 
-  const totalInvested = inputs.weeklyAmountIdr * weeks.length;
+  const totalInvested = inputs.amountPerPeriodIdr * dates.length;
   const currentValue = totalGrams * (getCloseOnOrBefore(inputs.goldDaily, endStr) ?? 0);
   const returnPct = totalInvested > 0 ? ((currentValue - totalInvested) / totalInvested) * 100 : 0;
 
@@ -167,26 +200,25 @@ export function runDcaGold(inputs: DcaInputs): DcaResult {
   };
 }
 
-/** Deposito: each weekly deposit compounds at BI rate from deposit date to today. */
+/** Deposito: each deposit compounds at BI rate from deposit date to today. */
 export function runDcaDeposito(inputs: DcaInputs): DcaResult {
   const end = new Date();
   const endStr = end.toISOString().slice(0, 10);
   const start = new Date();
   start.setFullYear(start.getFullYear() - inputs.yearsAgo);
   const startStr = start.toISOString().slice(0, 10);
-  const weeks = getWeeklyDates(startStr, endStr);
+  const dates = getScheduleDates(inputs.frequency, startStr, endStr);
   const series: { date: string; portfolioValue: number }[] = [];
   let totalValue = 0;
 
-  for (let i = 0; i < weeks.length; i++) {
-    const weekEnd = weeks[i];
-    const rate = getDepositoRate(inputs.depositoRates, weekEnd);
-    const yearsHeld = (end.getTime() - new Date(weekEnd).getTime()) / (365.25 * 24 * 60 * 60 * 1000);
-    totalValue += inputs.weeklyAmountIdr * Math.pow(1 + rate, yearsHeld);
-    series.push({ date: weekEnd, portfolioValue: Math.round(totalValue) });
+  for (const date of dates) {
+    const rate = getDepositoRate(inputs.depositoRates, date);
+    const yearsHeld = (end.getTime() - new Date(date).getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+    totalValue += inputs.amountPerPeriodIdr * Math.pow(1 + rate, yearsHeld);
+    series.push({ date, portfolioValue: Math.round(totalValue) });
   }
 
-  const totalInvested = inputs.weeklyAmountIdr * weeks.length;
+  const totalInvested = inputs.amountPerPeriodIdr * dates.length;
   const returnPct = totalInvested > 0 ? ((totalValue - totalInvested) / totalInvested) * 100 : 0;
 
   return {

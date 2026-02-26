@@ -72,23 +72,7 @@ export interface GoldPricePoint {
   goldPriceLocal: number;   // price of 1 oz gold that day
 }
 
-// IDR DCA calculator
-export type DcaAsset = 'deposito' | 'ihsg' | 'emas' | 'bitcoin';
-export type DcaStartOption = '1' | '2' | '3' | '5'; // years ago
-
-export interface DcaSeriesPoint {
-  date: string; // YYYY-MM-DD (week end)
-  portfolioValue: number; // IDR
-}
-
-export interface DcaAssetResult {
-  asset: DcaAsset;
-  totalInvested: number;
-  currentValue: number;
-  returnPct: number;
-  series: DcaSeriesPoint[]; // portfolio value over time for chart
-}
-
+// IDR DCA (deposito rate ranges)
 export interface DepositoRate {
   startDate: string;
   endDate: string;
