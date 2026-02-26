@@ -1,4 +1,4 @@
-import { writeFileSync } from 'fs';
+import { writeFileSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -53,10 +53,12 @@ async function main() {
     }
   }
 
-  const outPath = join(__dirname, '..', 'src', 'data', 'housing-monthly.json');
+  const outDir = join(__dirname, '..', 'src', 'data', 'usd');
+  mkdirSync(outDir, { recursive: true });
+  const outPath = join(outDir, 'housing-monthly.json');
   writeFileSync(outPath, JSON.stringify(entries));
   const sizeKB = (JSON.stringify(entries).length / 1024).toFixed(0);
-  console.log(`\nWrote ${entries.length} entries to src/data/housing-monthly.json (${sizeKB}KB)`);
+  console.log(`\nWrote ${entries.length} entries to src/data/usd/housing-monthly.json (${sizeKB}KB)`);
 }
 
 main().catch(console.error);
