@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import type { Timeframe, InflationMetric, DeflatorMetric, LiveDataStatus, PricePoint, DeflatorPoint, AdjustedPricePoint, GoldPricePoint, ComparisonAsset, ComparisonPoint, MultiMetricPoint, ViewMode, CurrencyCode } from './lib/types';
+import type { Timeframe, InflationMetric, DeflatorMetric, LiveDataStatus, PricePoint, DeflatorPoint, AdjustedPricePoint, GoldPricePoint, ComparisonAsset, ComparisonPoint, MultiMetricPoint, ViewMode, CurrencyCode, AppTab } from './lib/types';
 import { interpolateMonthlyToDaily } from './lib/interpolateCpi';
 import { adjustPrices } from './lib/adjustPrices';
 import { computeBitflationIndex } from './lib/computeBitflationIndex';
@@ -21,6 +21,9 @@ import { PriceChart } from './components/PriceChart';
 import { Calculator } from './components/Calculator';
 import { Explainer } from './components/Explainer';
 import { Footer } from './components/Footer';
+import { TabNav } from './components/TabNav';
+import { CpiCalculator } from './components/CpiCalculator';
+import { IdrDcaCalculator } from './components/IdrDcaCalculator';
 
 const initial = parseUrlState();
 
@@ -34,6 +37,7 @@ export default function App() {
   const [showGap, setShowGap] = useState(initial.gap ?? true);
   const [compareAssets, setCompareAssets] = useState<ComparisonAsset[]>(initial.compare ?? []);
   const [viewMode, setViewMode] = useState<ViewMode>(initial.view ?? 'compare');
+  const [activeTab, setActiveTab] = useState<AppTab>(initial.tab ?? 'chart');
   const [staticData, setStaticData] = useState<CurrencyData | null>(null);
   const [livePrices, setLivePrices] = useState<PricePoint[]>([]);
   const [liveDxy, setLiveDxy] = useState<DeflatorPoint[]>([]);
@@ -50,7 +54,12 @@ export default function App() {
   const isGoldMode = selectedMetrics.length === 1 && selectedMetrics[0] === 'GOLD';
   const deflatorMetrics = selectedMetrics.filter((m): m is DeflatorMetric => m !== 'GOLD');
 
-  // Validate metrics/compare when currency changes
+  // IDR has no Calculator tab: normalize to chart if URL/state has calculator
+  useEffect(() => {
+    if (currency === 'IDR' && activeTab === 'calculator') setActiveTab('chart');
+  }, [currency, activeTab]);
+
+  // Validate metrics/compare when currency changes; clear DCA tab if leaving IDR
   const handleCurrencyChange = useCallback((newCurrency: CurrencyCode) => {
     const config = CURRENCIES[newCurrency];
 
@@ -64,6 +73,8 @@ export default function App() {
     setCompareAssets(prev => prev.filter(a => config.availableCompareAssets.includes(a)));
 
     setCurrency(newCurrency);
+    if (newCurrency !== 'IDR') setActiveTab((t) => (t === 'dca' ? 'chart' : t));
+    if (newCurrency === 'IDR') setActiveTab((t) => (t === 'calculator' ? 'chart' : t));
   }, []);
 
   // 1. Load static data + fetch live data — dataReady gates all rendering
@@ -157,8 +168,8 @@ export default function App() {
 
   // 2. Sync state → URL
   useEffect(() => {
-    writeUrlState({ metrics: selectedMetrics, anchor: anchorYear, tf: timeframe, log: logScale, events: showEvents, compare: compareAssets, gap: showGap, view: viewMode, cur: currency });
-  }, [selectedMetrics, anchorYear, timeframe, logScale, showEvents, compareAssets, showGap, viewMode, currency]);
+    writeUrlState({ metrics: selectedMetrics, anchor: anchorYear, tf: timeframe, log: logScale, events: showEvents, compare: compareAssets, gap: showGap, view: viewMode, cur: currency, tab: activeTab });
+  }, [selectedMetrics, anchorYear, timeframe, logScale, showEvents, compareAssets, showGap, viewMode, currency, activeTab]);
 
   // 3. Stitch static + live
   const stitchedPrices = useMemo(
@@ -321,33 +332,39 @@ export default function App() {
     const ref = '2020-01-01';
     const today = stitchedPrices.length > 0 ? stitchedPrices[stitchedPrices.length - 1].date : null;
 
-    // Currency purchasing power loss via CPI
+    // Use latest value on or before date when exact date is beyond interpolated range (e.g. IDR CPI/M2)
+    const getOnOrBefore = (map: Map<string, number>, date: string): number | undefined => {
+      const exact = map.get(date);
+      if (exact !== undefined) return exact;
+      let best: string | undefined;
+      for (const k of map.keys()) {
+        if (k <= date && (!best || k > best)) best = k;
+      }
+      return best !== undefined ? map.get(best) : undefined;
+    };
+
     const cpiRef = dailyCpi.get(ref);
-    const cpiNow = today ? dailyCpi.get(today) : undefined;
+    const cpiNow = today ? getOnOrBefore(dailyCpi, today) : undefined;
     const dollarLoss = cpiRef && cpiNow ? 1 - cpiRef / cpiNow : null;
 
-    // BTC nominal gain
     const btcRef = stitchedPrices.find((p) => p.date >= ref);
     const btcNow = stitchedPrices.length > 0 ? stitchedPrices[stitchedPrices.length - 1] : null;
     const btcNominalGain = btcRef && btcNow ? btcNow.price / btcRef.price : null;
 
-    // BTC CPI-adjusted gain
     const btcRealGain =
       btcNominalGain !== null && cpiRef && cpiNow
         ? btcNominalGain * (cpiRef / cpiNow)
         : null;
 
-    // BFI purchasing power loss (blended CPI + M2)
     const m2Ref = dailyM2.get(ref);
-    const m2Now = today ? dailyM2.get(today) : undefined;
+    const m2Now = today ? getOnOrBefore(dailyM2, today) : undefined;
     const bfiGrowth2020 = cpiRef && cpiNow && m2Ref && m2Now
       ? 0.5 * (cpiNow / cpiRef) + 0.5 * (m2Now / m2Ref)
       : null;
     const bfiLoss = bfiGrowth2020 !== null ? 1 - (1 / bfiGrowth2020) : null;
 
-    // BTC in gold terms change
     const goldRef = dailyGold.get(ref);
-    const goldNow = today ? dailyGold.get(today) : undefined;
+    const goldNow = today ? getOnOrBefore(dailyGold, today) : undefined;
     const btcGoldChange =
       btcRef && btcNow && goldRef && goldNow
         ? (btcNow.price / goldNow) / (btcRef.price / goldRef)
@@ -390,45 +407,55 @@ export default function App() {
   return (
     <>
       <Header currency={currency} currencyConfig={currencyConfig} onCurrencyChange={handleCurrencyChange} />
-      <HeroPrice latestPoint={dataReady ? latestPoint : null} anchorYear={anchorYear} metric={primaryMetric} secondaryMetrics={secondaryHeroMetrics} viewMode={viewMode} currencyCode={currency} />
-      <Controls
-        anchorYear={anchorYear}
-        onAnchorYearChange={setAnchorYear}
-        timeframe={timeframe}
-        onTimeframeChange={setTimeframe}
-        selectedMetrics={selectedMetrics}
-        onSelectedMetricsChange={setSelectedMetrics}
-        logScale={logScale}
-        onLogScaleChange={setLogScale}
-        showEvents={showEvents}
-        onShowEventsChange={setShowEvents}
-        showGap={showGap}
-        onShowGapChange={setShowGap}
-        compareAssets={compareAssets}
-        onCompareAssetsChange={setCompareAssets}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-        currencyConfig={currencyConfig}
-      />
-      {dataReady && (
+      <TabNav activeTab={activeTab} onTabChange={setActiveTab} currency={currency} />
+      {activeTab === 'chart' ? (
         <>
-          <PriceChart
-            data={filteredData}
+          <HeroPrice latestPoint={dataReady ? latestPoint : null} anchorYear={anchorYear} metric={primaryMetric} secondaryMetrics={secondaryHeroMetrics} viewMode={viewMode} currencyCode={currency} />
+          <Controls
+            anchorYear={anchorYear}
+            onAnchorYearChange={setAnchorYear}
+            timeframe={timeframe}
+            onTimeframeChange={setTimeframe}
             selectedMetrics={selectedMetrics}
+            onSelectedMetricsChange={setSelectedMetrics}
             logScale={logScale}
+            onLogScaleChange={setLogScale}
             showEvents={showEvents}
+            onShowEventsChange={setShowEvents}
             showGap={showGap}
-            multiMetricData={filteredMultiMetric}
-            comparisonData={comparisonData}
+            onShowGapChange={setShowGap}
             compareAssets={compareAssets}
+            onCompareAssetsChange={setCompareAssets}
             viewMode={viewMode}
+            onViewModeChange={setViewMode}
             currencyConfig={currencyConfig}
           />
-          <Calculator prices={stitchedPrices} cpiMap={dailyCpi} m2Map={dailyM2} goldMap={dailyGold} currencyCode={currency} />
-          <Explainer stats={shockStats} currencyConfig={currencyConfig} />
+          {dataReady && (
+            <>
+              <PriceChart
+                data={filteredData}
+                selectedMetrics={selectedMetrics}
+                logScale={logScale}
+                showEvents={showEvents}
+                showGap={showGap}
+                multiMetricData={filteredMultiMetric}
+                comparisonData={comparisonData}
+                compareAssets={compareAssets}
+                viewMode={viewMode}
+                currencyConfig={currencyConfig}
+              />
+              <Calculator prices={stitchedPrices} cpiMap={dailyCpi} m2Map={dailyM2} goldMap={dailyGold} currencyCode={currency} />
+              <Explainer stats={shockStats} currencyConfig={currencyConfig} />
+            </>
+          )}
         </>
+      ) : activeTab === 'dca' ? (
+        <IdrDcaCalculator />
+      ) : (
+        // Calculator tab (USD/EUR only; IDR uses Chart + DCA only)
+        <CpiCalculator prices={stitchedPrices} />
       )}
-      <Footer liveDataStatus={liveDataStatus} currencyConfig={currencyConfig} />
+      <Footer liveDataStatus={liveDataStatus} currencyConfig={currencyConfig} currency={currency} />
     </>
   );
 }

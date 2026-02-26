@@ -51,6 +51,8 @@ export interface CalculatorResult {
   goldReturn: number;          // ratio of gold ounces now vs then
 }
 
+export type AppTab = 'chart' | 'calculator' | 'dca';
+
 export type ViewMode = 'compare' | 'realPrice';
 
 export type ComparisonAsset = 'sp500' | 'gold' | 'housing';
@@ -68,4 +70,11 @@ export interface GoldPricePoint {
   nominalPrice: number;   // BTC in USD
   goldOunces: number;     // BTC in oz of gold
   goldPriceLocal: number;   // price of 1 oz gold that day
+}
+
+// IDR DCA (deposito rate ranges)
+export interface DepositoRate {
+  startDate: string;
+  endDate: string;
+  ratePercent: number;
 }

@@ -1,0 +1,24 @@
+.nav {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  padding: 12px 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+}
+
+.tab:hover:not(.active) {
+  color: var(--text-secondary);
+}
+
+.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent-indigo);
+}

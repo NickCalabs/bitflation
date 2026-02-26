@@ -1,4 +1,4 @@
-import type { InflationMetric, Timeframe, ComparisonAsset, ViewMode, CurrencyCode } from './types';
+import type { InflationMetric, Timeframe, ComparisonAsset, ViewMode, AppTab, CurrencyCode } from './types';
 
 const VALID_METRICS: InflationMetric[] = ['BFI', 'CPI', 'M2', 'GOLD', 'DXY'];
 const VALID_TIMEFRAMES: Timeframe[] = ['1Y', '5Y', 'ALL'];
@@ -22,6 +22,7 @@ interface UrlState {
   compare: ComparisonAsset[];
   gap: boolean;
   view: ViewMode;
+  tab?: AppTab;
   cur: CurrencyCode;
 }
 
@@ -82,6 +83,10 @@ export function parseUrlState(): Partial<UrlState> {
     result.view = 'realPrice';
   }
 
+  const tab = params.get('tab');
+  if (tab === 'calculator') result.tab = 'calculator';
+  else if (tab === 'dca') result.tab = 'dca';
+
   const cur = params.get('cur')?.toUpperCase();
   if (cur && VALID_CURRENCIES.includes(cur as CurrencyCode)) {
     result.cur = cur as CurrencyCode;
@@ -118,6 +123,8 @@ export function writeUrlState(state: UrlState): void {
   if (state.view === 'realPrice') {
     params.set('view', 'real');
   }
+  if (state.tab === 'calculator') params.set('tab', 'calculator');
+  else if (state.tab === 'dca') params.set('tab', 'dca');
   if (state.cur !== 'USD') {
     params.set('cur', state.cur.toLowerCase());
   }
