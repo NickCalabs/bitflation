@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import type { PricePoint } from '../lib/types';
-import staticCpiData from '../data/cpi-monthly.json';
+import staticCpiData from '../data/usd/cpi-monthly.json';
 import styles from './CpiCalculator.module.css';
 
 interface CpiCalculatorProps {

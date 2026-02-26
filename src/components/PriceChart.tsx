@@ -12,8 +12,9 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import type { AdjustedPricePoint, GoldPricePoint, InflationMetric, DeflatorMetric, ComparisonAsset, ComparisonPoint, MultiMetricPoint, ViewMode } from '../lib/types';
-import { formatUSDCompact, formatChartDate, formatGoldOz, formatIndexed } from '../lib/formatters';
-import { EVENTS, filterEventsToRange, type ChartEvent } from '../lib/events';
+import { formatCurrencyCompact, formatChartDate, formatGoldOz, formatIndexed } from '../lib/formatters';
+import { filterEventsToRange, type ChartEvent } from '../lib/events';
+import type { CurrencyConfig } from '../lib/currencies';
 import { CustomTooltip } from './CustomTooltip';
 import styles from './PriceChart.module.css';
 
@@ -55,6 +56,7 @@ interface PriceChartProps {
   comparisonData?: ComparisonPoint[] | null;
   compareAssets?: ComparisonAsset[];
   viewMode?: ViewMode;
+  currencyConfig: CurrencyConfig;
 }
 
 function sampleTicks(data: { date: string }[]): string[] {
@@ -95,7 +97,7 @@ function computeEventLayouts(events: ChartEvent[]): EventLayout[] {
   return layouts;
 }
 
-export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGap, multiMetricData, comparisonData, compareAssets = [], viewMode = 'compare' }: PriceChartProps) {
+export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGap, multiMetricData, comparisonData, compareAssets = [], viewMode = 'compare', currencyConfig }: PriceChartProps) {
   const isComparison = comparisonData != null && comparisonData.length > 0 && compareAssets.length > 0;
   const isRealPrice = viewMode === 'realPrice' && !isComparison;
   const primaryMetric = selectedMetrics[0];
@@ -158,7 +160,7 @@ export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGa
   if (!isComparison && data.length === 0 && !useMultiMetric) return null;
 
   const eventSource = isComparison ? comparisonData! : data;
-  const visibleEvents = showEvents ? filterEventsToRange(EVENTS, eventSource) : [];
+  const visibleEvents = showEvents ? filterEventsToRange(currencyConfig.events, eventSource) : [];
   const eventLayouts = computeEventLayouts(visibleEvents);
 
   // Filter out zero/negative values for log scale (single metric mode)
@@ -370,7 +372,7 @@ export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGa
               />
               <YAxis
                 yAxisId="usd"
-                tickFormatter={(v: number) => formatUSDCompact(v)}
+                tickFormatter={(v: number) => formatCurrencyCompact(v)}
                 width={55}
                 {...yAxisProps}
               />
@@ -412,7 +414,7 @@ export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGa
                 isAnimationActive={true}
                 animationDuration={600}
                 animationEasing="ease-in-out"
-                name="Nominal USD"
+                name={`Nominal ${currencyConfig.code}`}
               />
               <Line
                 yAxisId="gold"
@@ -432,7 +434,7 @@ export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGa
         <div className={styles.legend}>
           <div className={styles.legendItem}>
             <span className={`${styles.legendDot} ${styles.nominal}`} />
-            Nominal USD
+            {`Nominal ${currencyConfig.code}`}
           </div>
           <div className={styles.legendItem}>
             <span className={`${styles.legendDot} ${styles.gold}`} />
@@ -468,7 +470,7 @@ export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGa
               tickLine={false}
             />
             <YAxis
-              tickFormatter={(v: number) => formatUSDCompact(v)}
+              tickFormatter={(v: number) => formatCurrencyCompact(v)}
               width={55}
               {...yAxisProps}
             />
@@ -555,7 +557,7 @@ export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGa
       <div className={styles.legend}>
         <div className={styles.legendItem}>
           <span className={`${styles.legendDot} ${styles.nominal}`} />
-          Nominal USD
+          {`Nominal ${currencyConfig.code}`}
         </div>
         {useMultiMetric ? (
           deflatorMetrics.map(m => (

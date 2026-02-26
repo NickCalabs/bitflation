@@ -1,8 +1,9 @@
-import type { InflationMetric, Timeframe, ComparisonAsset, ViewMode, AppTab } from './types';
+import type { InflationMetric, Timeframe, ComparisonAsset, ViewMode, AppTab, CurrencyCode } from './types';
 
 const VALID_METRICS: InflationMetric[] = ['BFI', 'CPI', 'M2', 'GOLD', 'DXY'];
 const VALID_TIMEFRAMES: Timeframe[] = ['1Y', '5Y', 'ALL'];
 const VALID_COMPARE: ComparisonAsset[] = ['sp500', 'gold', 'housing'];
+const VALID_CURRENCIES: CurrencyCode[] = ['USD', 'EUR', 'IDR'];
 
 const DEFAULTS = {
   metrics: ['BFI'] as InflationMetric[],
@@ -22,6 +23,7 @@ interface UrlState {
   gap: boolean;
   view: ViewMode;
   tab?: AppTab;
+  cur: CurrencyCode;
 }
 
 export function parseUrlState(): Partial<UrlState> {
@@ -86,6 +88,11 @@ export function parseUrlState(): Partial<UrlState> {
     result.tab = 'calculator';
   }
 
+  const cur = params.get('cur')?.toUpperCase();
+  if (cur && VALID_CURRENCIES.includes(cur as CurrencyCode)) {
+    result.cur = cur as CurrencyCode;
+  }
+
   return result;
 }
 
@@ -119,6 +126,9 @@ export function writeUrlState(state: UrlState): void {
   }
   if (state.tab === 'calculator') {
     params.set('tab', 'calculator');
+  }
+  if (state.cur !== 'USD') {
+    params.set('cur', state.cur.toLowerCase());
   }
 
   const search = params.toString();

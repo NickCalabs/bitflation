@@ -32,12 +32,16 @@ export function computeBitflationIndex(
   const cpiAnchor = cpiSum / cpiCount;
   const m2Anchor = m2Sum / m2Count;
 
-  // For each date present in BOTH maps, compute blended index
+  // For each CPI date, compute blended index (degrades to CPI-only when M2 unavailable)
   const result = new Map<string, number>();
   for (const [date, cpi] of dailyCpi) {
     const m2 = dailyM2.get(date);
-    if (m2 === undefined) continue;
-    result.set(date, 0.5 * (cpi / cpiAnchor) + 0.5 * (m2 / m2Anchor));
+    if (m2 !== undefined) {
+      result.set(date, 0.5 * (cpi / cpiAnchor) + 0.5 * (m2 / m2Anchor));
+    } else if (dailyM2.size > 0) {
+      // M2 data exists but doesn't cover this date — use CPI only
+      result.set(date, cpi / cpiAnchor);
+    }
   }
 
   return result;

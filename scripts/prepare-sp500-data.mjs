@@ -1,4 +1,4 @@
-import { writeFileSync } from 'fs';
+import { writeFileSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -84,10 +84,12 @@ async function main() {
     }
   }
 
-  const outPath = join(__dirname, '..', 'src', 'data', 'sp500-daily.json');
+  const outDir = join(__dirname, '..', 'src', 'data', 'usd');
+  mkdirSync(outDir, { recursive: true });
+  const outPath = join(outDir, 'sp500-daily.json');
   writeFileSync(outPath, JSON.stringify(entries));
   const sizeKB = (JSON.stringify(entries).length / 1024).toFixed(0);
-  console.log(`\nWrote ${entries.length} entries to src/data/sp500-daily.json (${sizeKB}KB)`);
+  console.log(`\nWrote ${entries.length} entries to src/data/usd/sp500-daily.json (${sizeKB}KB)`);
 }
 
 main().catch(console.error);

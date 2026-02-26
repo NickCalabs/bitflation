@@ -5,13 +5,16 @@ import type { PricePoint } from './types';
  * If CoinGecko fails (rate limit, network), falls back to Blockchain.com
  * for at least today's spot price so the latest data point is always fresh.
  */
-export async function fetchLivePrices(): Promise<PricePoint[]> {
+export async function fetchLivePrices(
+  vsCurrency = 'usd',
+  blockchainTickerKey = 'USD'
+): Promise<PricePoint[]> {
   // Try CoinGecko first (365 days of daily data)
   const apiKey = import.meta.env.VITE_COINGECKO_API_KEY;
   if (apiKey) {
     try {
       const res = await fetch(
-        'https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=365&interval=daily',
+        `https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=${vsCurrency}&days=365&interval=daily`,
         { headers: { 'x-cg-demo-api-key': apiKey } }
       );
 
@@ -33,8 +36,8 @@ export async function fetchLivePrices(): Promise<PricePoint[]> {
   try {
     const res = await fetch('https://blockchain.info/ticker');
     if (!res.ok) return [];
-    const data = await res.json() as { USD?: { last?: number } };
-    const price = data.USD?.last;
+    const data = await res.json() as Record<string, { last?: number }>;
+    const price = data[blockchainTickerKey]?.last;
     if (!price) return [];
 
     const today = new Date().toISOString().slice(0, 10);
