@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import {
   ComposedChart,
   Line,
@@ -114,18 +114,17 @@ export function PriceChart({ data, selectedMetrics, logScale, showEvents, showGa
   const [isZoomed, setIsZoomed] = useState(false);
   const [zoomRange, setZoomRange] = useState<[string, string] | null>(null);
 
-  const dataRef = useRef(data);
-  const compDataRef = useRef(comparisonData);
-  useEffect(() => {
-    if (dataRef.current !== data || compDataRef.current !== comparisonData) {
-      dataRef.current = data;
-      compDataRef.current = comparisonData;
-      setZoomRange(null);
-      setIsZoomed(false);
-      setZoomStart(null);
-      setZoomEnd(null);
-    }
-  }, [data, comparisonData]);
+  // Reset zoom when data changes (React-recommended "adjust state during render" pattern)
+  const [prevData, setPrevData] = useState(data);
+  const [prevCompData, setPrevCompData] = useState(comparisonData);
+  if (prevData !== data || prevCompData !== comparisonData) {
+    setPrevData(data);
+    setPrevCompData(comparisonData);
+    setZoomRange(null);
+    setIsZoomed(false);
+    setZoomStart(null);
+    setZoomEnd(null);
+  }
 
   const resetZoom = useCallback(() => {
     setZoomRange(null);
