@@ -86,6 +86,7 @@ export default function App() {
         if (prevCurrencyRef.current !== currency) {
           setCurrency(prevCurrencyRef.current);
         }
+        setDataReady(true); // Unblock UI — user will see empty/previous state, not infinite skeleton
         return;
       }
 

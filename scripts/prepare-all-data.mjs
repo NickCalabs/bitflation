@@ -11,6 +11,8 @@ const SCRIPTS = [
   'prepare-m2-data.mjs',
   'prepare-gold-data.mjs',
   'prepare-dxy-data.mjs',
+  'prepare-sp500-data.mjs',
+  'prepare-housing-data.mjs',
   // EUR
   'prepare-btc-data-eur.mjs',
   'prepare-cpi-data-eur.mjs',
